@@ -7,7 +7,7 @@ license = "AGPL-3.0-or-later"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.8"
 SQLAlchemy = ">=1.4.41,<1.5"
 aiohttp = ">=3.8.3,<4"
 quart = ">=0.18.1,<0.19"
