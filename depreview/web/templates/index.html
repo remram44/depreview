@@ -2,4 +2,6 @@
 
 {% block contents -%}
 <h1>DepReview</h1>
+<p>This platform is designed to help with assessing your dependencies. It allows you to check the status of specific software packages, or update a list of your dependencies in bulk to get an overview of potential problems.</p>
+<p>The data is a mix of information collected automatically from package registries (e.g. latest versions numbers and dates) and manually-input information. This aims to capture the fact that a project might not be getting updates because it is stable rather than abandoned, and that a project might have been declared deprecated by its author even if an update just went out. We also want to capture other details such as a package getting a new name, activity resuming in a fork, multiple major versions being supported, etc.</p>
 {%- endblock %}
