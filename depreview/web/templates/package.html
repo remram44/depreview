@@ -16,6 +16,15 @@
 <p>Description: none</p>
 {% endif %}
 {% for version in versions %}
-<p>Version {{ version.version }}, released {{ version.release_date }}{% if version.yanked %} YANKED{% endif %}</p>
+<p>
+  Version {{ version.version }}, released {{ version.release_date }}
+  {% if version.status[0] == 'yanked' %}
+  <br><span style="color: red;">{{ version.status[1] }}</span>
+  {% elif version.status[0] == 'very-outdated' %}
+  <br><span style="color: red;">{{ version.status[1] }}</span>
+  {% elif version.status[0] == 'outdated' %}
+  <br><span style="color: blue;">{{ version.status[1] }}</span>
+  {% endif %}
+</p>
 {% endfor %}
 {%- endblock %}

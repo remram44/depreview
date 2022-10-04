@@ -6,12 +6,12 @@ import logging
 import markdown
 from markupsafe import Markup
 import os
-from packaging.version import Version
 from quart import Quart, render_template, redirect, url_for, request
 import sqlalchemy
 from sqlalchemy import desc
 
 from .. import database
+from ..decision import annotate_versions
 from ..registries import get_registry, get_all_registry_names
 
 
@@ -238,13 +238,3 @@ async def refresh_package(registry_obj, old_package):
                 )
 
     return new_package
-
-
-def annotate_versions(versions):
-    versions = sorted(
-        versions.values(),
-        key=lambda v: Version(v.version),
-        reverse=True,
-    )
-    # TODO
-    return versions

@@ -47,6 +47,9 @@ class PackageVersion(object):
         self.release_date = release_date
         self.yanked = yanked
 
+    def __cmp__(self, other):
+        raise NotImplementedError
+
     def __repr__(self):
         return '<PackageVersion %r %s%s>' % (
             self.version,
