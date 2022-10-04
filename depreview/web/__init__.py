@@ -112,7 +112,7 @@ async def package(registry, name):
         package = await refresh_package(registry_obj, package)
 
     # Annotate versions with whether they are outdated
-    versions = annotate_versions(package.versions)
+    versions = annotate_versions(registry_obj, package.versions)
 
     return await render_template(
         'package.html',

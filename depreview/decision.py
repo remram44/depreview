@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from packaging.version import Version
 
 from .registries.base import PackageVersion
 
@@ -47,10 +46,10 @@ def format_time(td):
         return _format_count(years, 'year')
 
 
-def annotate_versions(versions):
+def annotate_versions(registry_obj, versions):
     versions = sorted(
         versions.values(),
-        key=lambda v: Version(v.version),
+        key=lambda v: registry_obj.version_comparison_key(v.version),
         reverse=True,
     )
 

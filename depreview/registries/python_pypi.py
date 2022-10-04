@@ -1,5 +1,6 @@
 from datetime import datetime
 import logging
+import packaging.version
 import re
 
 from .base import BaseRegistry, Package, PackageVersion
@@ -81,3 +82,6 @@ class PythonPyPI(BaseRegistry):
 
     def get_link(self, name):
         return f'https://pypi.org/project/{name}/'
+
+    def version_comparison_key(self, version):
+        return packaging.version.Version(version)

@@ -11,6 +11,9 @@ class BaseRegistry(object):
     def get_link(self, name):
         raise NotImplementedError
 
+    def version_comparison_key(self, version):
+        raise NotImplementedError
+
 
 class Package(object):
     def __init__(
