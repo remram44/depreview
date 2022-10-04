@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block contents -%}
+<h1>{{ package.name }}</h1>
+{% if last_refresh %}
+<p>Last updated: {{ last_refresh }}</p>
+{% endif %}
+<p>Author: {% if package.author %}{{ package.author }}{% else %}unknown{% endif %}</p>
+{% if package.description %}
+<p>Description:</p>
+{{ rendered_description }}
+{% else %}
+<p>Description: none</p>
+{% endif %}
+<p>Repository: {% if package.repository %}{{ package.repository }}{% else %}unknown{% endif %}</p>
+{% for version in package.versions %}
+<p>Version {{ version.version }}, released {{ version.release_date }}{% if version.yanked %} YANKED{% endif %}</p>
+{% endfor %}
+{%- endblock %}

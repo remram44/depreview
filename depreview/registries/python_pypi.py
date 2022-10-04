@@ -1,13 +1,13 @@
 import re
 from datetime import datetime
 
-from .base import BaseCrawler, Package, PackageVersion
+from .base import BaseRegistry, Package, PackageVersion
 
 
 _repository_url = re.compile(r'^https?://(github.com|gitlab.com|codeberg.org)(?:/.*)?$')
 
 
-class PythonPyPI(BaseCrawler):
+class PythonPyPI(BaseRegistry):
     async def get_package(self, name, http):
         async with http.get(f'https://pypi.org/pypi/{name}/json') as resp:
             data = await resp.json()
@@ -67,3 +67,6 @@ class PythonPyPI(BaseCrawler):
             release_date=first_date,
             yanked=all_yanked,
         )
+
+    def normalize_name(self, name):
+        return name.lower().replace('_', '-')

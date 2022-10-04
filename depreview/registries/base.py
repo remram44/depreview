@@ -1,5 +1,8 @@
-class BaseCrawler(object):
+class BaseRegistry(object):
     async def get_package(self, name, http):
+        raise NotImplementedError
+
+    def normalize_name(self, name):
         raise NotImplementedError
 
 

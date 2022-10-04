@@ -1,8 +1,10 @@
 import logging
 import sqlalchemy.event
-from sqlalchemy import MetaData, Table, engine_from_config
+from sqlalchemy import MetaData, Table, desc, engine_from_config
 from sqlalchemy.schema import Column, ForeignKey, ForeignKeyConstraint
-from sqlalchemy.types import Boolean, Integer, String
+from sqlalchemy.types import Boolean, DateTime, Integer, String
+
+from .registries.base import Package, PackageVersion
 
 
 logger = logging.getLogger(__name__)
@@ -20,21 +22,27 @@ metadata = MetaData(naming_convention={
 packages = Table(
     'packages',
     metadata,
-    Column('repository', String, primary_key=True),
+    Column('registry', String, primary_key=True),
     Column('name', String, primary_key=True),
+    Column('last_refresh', DateTime, nullable=False),
     Column('orig_name', String, nullable=False),
+    Column('author', String, nullable=True),
+    Column('description', String, nullable=True),
+    Column('description_type', String, nullable=True),
     Column('repository', String, nullable=True),
 )
 
 package_versions = Table(
     'package_versions',
     metadata,
-    Column('repository', String, primary_key=True),
+    Column('registry', String, primary_key=True),
     Column('name', String, primary_key=True),
     Column('version', String, primary_key=True),
+    Column('release_date', DateTime, nullable=False),
+    Column('yanked', Boolean, nullable=False),
     ForeignKeyConstraint(
-        ['repository', 'name'],
-        ['packages.repository', 'packages.name'],
+        ['registry', 'name'],
+        ['packages.registry', 'packages.name'],
     ),
 )
 
@@ -44,20 +52,22 @@ users = Table(
     Column('id', Integer, primary_key=True),
     Column('disabled', Boolean, nullable=False),
     Column('login', String, nullable=False),
+    Column('name', String, nullable=False),
 )
 
 reviews = Table(
     'reviews',
     metadata,
     Column('id', Integer, primary_key=True),
-    Column('repository', String, primary_key=True),
+    Column('registry', String, primary_key=True),
     Column('name', String, primary_key=True),
     Column('user_id', Integer, ForeignKey('users.id'), nullable=False),
     Column('type', String, nullable=False),
     Column('proof', String, nullable=False),
+    Column('created', DateTime, nullable=False),
     ForeignKeyConstraint(
-        ['repository', 'name'],
-        ['packages.repository', 'packages.name'],
+        ['registry', 'name'],
+        ['packages.registry', 'packages.name'],
     ),
 )
 
@@ -91,3 +101,60 @@ def connect(db_url):
         )
 
     return engine
+
+
+def get_package(db, registry, normalized_name):
+    package = db.execute(
+        sqlalchemy.select([
+            packages.c.orig_name,
+            packages.c.last_refresh,
+            packages.c.repository,
+            packages.c.author,
+            packages.c.description,
+            packages.c.description_type,
+        ])
+        .select_from(packages)
+        .where(
+            packages.c.registry == registry
+            and packages.c.name == normalized_name
+        )
+        .limit(1)
+    ).first()
+    if not package:
+        return None
+    [
+        orig_name,
+        last_refresh,
+        repository,
+        author,
+        description,
+        description_type,
+    ] = package
+
+    versions = db.execute(
+        sqlalchemy.select([
+            package_versions.c.version,
+            package_versions.c.release_date,
+            package_versions.c.yanked,
+        ])
+        .select_from(package_versions)
+        .where(
+            package_versions.c.registry == registry
+            and package_versions.c.name == normalized_name
+        )
+        .order_by(desc(package_versions.c.release_date))
+    )
+    versions = [
+        PackageVersion(version, release_date=release_date, yanked=yanked)
+        for version, release_date, yanked in versions
+    ]
+
+    package = Package(
+        orig_name,
+        versions,
+        author=author,
+        description=description,
+        description_type=description_type,
+        repository=repository,
+    )
+    return package, last_refresh
