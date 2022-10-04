@@ -115,8 +115,8 @@ def get_package(db, registry, normalized_name):
         ])
         .select_from(packages)
         .where(
-            packages.c.registry == registry
-            and packages.c.name == normalized_name
+            packages.c.registry == registry,
+            packages.c.name == normalized_name,
         )
         .limit(1)
     ).first()
@@ -139,8 +139,8 @@ def get_package(db, registry, normalized_name):
         ])
         .select_from(package_versions)
         .where(
-            package_versions.c.registry == registry
-            and package_versions.c.name == normalized_name
+            package_versions.c.registry == registry,
+            package_versions.c.name == normalized_name,
         )
         .order_by(desc(package_versions.c.release_date))
     )

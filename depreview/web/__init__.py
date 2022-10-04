@@ -131,6 +131,10 @@ async def refresh_package(registry_obj, old_package):
         trans.execute(
             database.packages.update()
             .values(**update)
+            .where(
+                database.packages.c.registry == registry_obj.NAME,
+                database.packages.c.name == old_package['name'],
+            )
         )
 
         # Update versions
