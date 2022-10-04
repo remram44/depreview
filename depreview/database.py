@@ -160,5 +160,6 @@ def get_package(db, registry, normalized_name):
         description=description,
         description_type=description_type,
         repository=repository,
+        last_refresh=last_refresh,
     )
-    return package, last_refresh
+    return package

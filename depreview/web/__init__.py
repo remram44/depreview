@@ -1,18 +1,20 @@
 import aiohttp
 from datetime import datetime, timedelta
-from distutils.version import LooseVersion
 import logging
 import markdown
 from markupsafe import Markup
 import os
-from quart import Quart, render_template, redirect, url_for
+
+from packaging.version import Version
+from quart import Quart, render_template, redirect, url_for, request
 import sqlalchemy
 from sqlalchemy import desc
 
 from .. import database
-from ..registries import get_registry
+from ..registries import get_registry, get_all_registry_names
 
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -61,6 +63,7 @@ async def index():
     )
     return await render_template(
         'index.html',
+        registry_names=get_all_registry_names(),
         latest_changes=latest_changes,
     )
 
@@ -83,12 +86,13 @@ async def package(registry, name):
         )
 
     # Get from database
-    package, last_refresh = database.get_package(db, registry, name)
+    package = database.get_package(db, registry, name)
 
     # If too old, refresh
-    if datetime.utcnow() - last_refresh > MAX_AGE:
+    if package is None:
+        package = await load_package(registry_obj, name)
+    elif datetime.utcnow() - package.last_refresh > MAX_AGE:
         package = await refresh_package(registry_obj, package)
-        last_refresh = None
 
     # Annotate versions with whether they are outdated
     versions = annotate_versions(package.versions)
@@ -101,8 +105,72 @@ async def package(registry, name):
             package.description,
             package.description_type,
         )),
-        last_refresh=last_refresh,
     )
+
+
+@app.route('/search', methods=['POST'])
+async def search_package():
+    form = await request.form
+    registry = form['registry']
+    name = form['name']
+
+    registry_obj = get_registry(registry)
+    if registry_obj is None:
+        return await render_template(
+            'package_notfound.html',
+            error='No such registry',
+        ), 404
+    normalized_name = registry_obj.normalize_name(name)
+
+    return redirect(
+        url_for('package', registry=registry, name=normalized_name),
+        301,
+    )
+
+
+@app.route('/upload-list', methods=['POST'])
+async def upload_list():
+    TODO
+
+
+async def load_package(registry_obj, normalized_name):
+    logger.info(
+        "Loading package %r / %r...",
+        registry_obj.NAME,
+        normalized_name,
+    )
+
+    async with aiohttp.ClientSession() as http:
+        package = await registry_obj.get_package(normalized_name, http)
+
+    with db.begin() as trans:
+        trans.execute(
+            database.packages.insert()
+            .values(
+                registry=registry_obj.NAME,
+                name=normalized_name,
+                last_refresh=package.last_refresh,
+                orig_name=package.name,
+                author=package.author,
+                description=package.description,
+                description_type=package.description_type,
+                repository=package.repository,
+            )
+        )
+
+        for num, version in package.versions.items():
+            trans.execute(
+                database.package_versions.insert()
+                .values(
+                    registry=registry_obj.NAME,
+                    name=registry_obj.normalize_name(package.name),
+                    version=num,
+                    release_date=version.release_date,
+                    yanked=bool(version.yanked),
+                )
+            )
+
+    return package
 
 
 async def refresh_package(registry_obj, old_package):
@@ -117,7 +185,7 @@ async def refresh_package(registry_obj, old_package):
 
     with db.begin() as trans:
         # Update package data
-        update = {'last_refresh': datetime.utcnow()}
+        update = {'last_refresh': new_package.last_refresh}
         if new_package.name != old_package.name:
             update['name'] = new_package.name
         if new_package.author != old_package.author:
@@ -157,12 +225,8 @@ async def refresh_package(registry_obj, old_package):
 def annotate_versions(versions):
     versions = sorted(
         versions.values(),
-        key=lambda v: LooseVersion(v.version),
+        key=lambda v: Version(v.version),
         reverse=True,
     )
     # TODO
     return versions
-
-
-def main():
-    app.run()

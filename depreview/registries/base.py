@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 class BaseRegistry(object):
     async def get_package(self, name, http):
         raise NotImplementedError
@@ -7,13 +10,27 @@ class BaseRegistry(object):
 
 
 class Package(object):
-    def __init__(self, name, versions, *, author, description, description_type, repository):
+    def __init__(
+        self,
+        name,
+        versions,
+        *,
+        author,
+        description,
+        description_type,
+        repository,
+        last_refresh=None,
+    ):
         self.name = name
         self.versions = versions
         self.author = author
         self.description = description
         self.description_type = description_type
         self.repository = repository
+        if last_refresh is None:
+            self.last_refresh = datetime.utcnow()
+        else:
+            self.last_refresh = last_refresh
 
     def __repr__(self):
         return '<Package %r>' % self.name
@@ -28,6 +45,6 @@ class PackageVersion(object):
     def __repr__(self):
         return '<PackageVersion %r %s%s>' % (
             self.version,
-            self.release_date.date().isoformat(),
+            self.release_date.date().isoformat() if self.release_date else 'no-date',
             ' yanked' if self.yanked else '',
         )

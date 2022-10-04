@@ -12,9 +12,7 @@ SQLAlchemy = ">=1.4.41,<1.5"
 aiohttp = ">=3.8.3,<4"
 quart = ">=0.18.1,<0.19"
 Markdown = ">=3.4.1,<4"
-
-[tool.poetry.scripts]
-depreview = "depreview.web:main"
+packaging = "*"
 
 [tool.poetry.plugins."depreview.registries"]
 pypi = "depreview.registries.python_pypi:PythonPyPI"

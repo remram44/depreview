@@ -1,7 +1,11 @@
-import re
 from datetime import datetime
+import logging
+import re
 
 from .base import BaseRegistry, Package, PackageVersion
+
+
+logger = logging.getLogger(__name__)
 
 
 _repository_url = re.compile(r'^https?://(github.com|gitlab.com|codeberg.org)(?:/.*)?$')
@@ -11,6 +15,8 @@ class PythonPyPI(BaseRegistry):
     NAME = 'pypi'
 
     async def get_package(self, name, http):
+        logger.info("Loading %r / %r", self.NAME, name)
+
         async with http.get(f'https://pypi.org/pypi/{name}/json') as resp:
             data = await resp.json()
 
@@ -42,6 +48,7 @@ class PythonPyPI(BaseRegistry):
         versions = {
             k: self._parse_version(k, v)
             for k, v in data['releases'].items()
+            if v
         }
 
         return Package(
@@ -64,6 +71,12 @@ class PythonPyPI(BaseRegistry):
             if not build['yanked']:
                 all_yanked = False
 
+        logger.info(
+            "Version: %r %s%s",
+            version,
+            first_date.isoformat() if first_date else 'no-date',
+            ' yanked' if all_yanked else '',
+        )
         return PackageVersion(
             version,
             release_date=first_date,

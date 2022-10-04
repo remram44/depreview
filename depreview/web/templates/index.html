@@ -4,4 +4,24 @@
 <h1>DepReview</h1>
 <p>This platform is designed to help with assessing your dependencies. It allows you to check the status of specific software packages, or update a list of your dependencies in bulk to get an overview of potential problems.</p>
 <p>The data is a mix of information collected automatically from package registries (e.g. latest versions numbers and dates) and manually-input information. This aims to capture the fact that a project might not be getting updates because it is stable rather than abandoned, and that a project might have been declared deprecated by its author even if an update just went out. We also want to capture other details such as a package getting a new name, activity resuming in a fork, multiple major versions being supported, etc.</p>
+<form action="{{ url_for('search_package') }}" method="post">
+  <p>
+    Search for a package
+    <input type="text" name="name" placeholder="scikit-learn">
+    on
+    <select name="registry">
+      {% for registry in registry_names %}
+      <option value="{{ registry }}">{{ registry }}</option>
+      {% endfor %}
+    </select>
+    <input type="submit" value="Go">
+  </p>
+</form>
+<form action="{{ url_for('upload_list') }}" method="post">
+  <p>
+    Upload your list of dependencies:
+    <input type="file" name="list">
+    <input type="submit" value="Load">
+  </p>
+</form>
 {%- endblock %}

@@ -2,8 +2,8 @@
 
 {% block contents -%}
 <h1>{{ package.name }}</h1>
-{% if last_refresh %}
-<p>Last updated: {{ last_refresh }}</p>
+{% if package.last_refresh %}
+<p>Last updated: {{ package.last_refresh }}</p>
 {% endif %}
 <p>Author: {% if package.author %}{{ package.author }}{% else %}unknown{% endif %}</p>
 {% if package.description %}
