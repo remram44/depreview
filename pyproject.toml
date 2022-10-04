@@ -11,6 +11,7 @@ python = "^3.10"
 SQLAlchemy = ">=1.4.41,<1.5"
 aiohttp = ">=3.8.3,<4"
 quart = ">=0.18.1,<0.19"
+Markdown = ">=3.4.1,<4"
 
 [tool.poetry.scripts]
 depreview = "depreview.web:main"

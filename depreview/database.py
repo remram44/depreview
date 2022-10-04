@@ -144,10 +144,14 @@ def get_package(db, registry, normalized_name):
         )
         .order_by(desc(package_versions.c.release_date))
     )
-    versions = [
-        PackageVersion(version, release_date=release_date, yanked=yanked)
+    versions = {
+        version: PackageVersion(
+            version,
+            release_date=release_date,
+            yanked=yanked,
+        )
         for version, release_date, yanked in versions
-    ]
+    }
 
     package = Package(
         orig_name,

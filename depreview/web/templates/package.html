@@ -8,12 +8,14 @@
 <p>Author: {% if package.author %}{{ package.author }}{% else %}unknown{% endif %}</p>
 {% if package.description %}
 <p>Description:</p>
+<blockquote>
 {{ rendered_description }}
+</blockquote>
 {% else %}
 <p>Description: none</p>
 {% endif %}
 <p>Repository: {% if package.repository %}{{ package.repository }}{% else %}unknown{% endif %}</p>
-{% for version in package.versions %}
+{% for version in versions %}
 <p>Version {{ version.version }}, released {{ version.release_date }}{% if version.yanked %} YANKED{% endif %}</p>
 {% endfor %}
 {%- endblock %}

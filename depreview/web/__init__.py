@@ -1,4 +1,8 @@
+import aiohttp
 from datetime import datetime, timedelta
+from distutils.version import LooseVersion
+import logging
+import markdown
 from markupsafe import Markup
 import os
 from quart import Quart, render_template, redirect, url_for
@@ -6,7 +10,10 @@ import sqlalchemy
 from sqlalchemy import desc
 
 from .. import database
-from ..registries import get_registry, refresh_package
+from ..registries import get_registry
+
+
+logger = logging.getLogger(__name__)
 
 
 MAX_AGE = timedelta(hours=6)
@@ -20,11 +27,13 @@ db = database.connect(os.environ['DATABASE_URL'])
 
 def render_description(description, description_type):
     if description_type == 'text/markdown':
-        pass  # TODO
+        return markdown.markdown(description)
     elif description_type == 'text/x-rst':
         pass  # TODO
 
-    return description.replace('&', '&amp;').replace('<', '&lt;')
+    return '<pre>%s</pre>' % (
+        description.replace('&', '&amp;').replace('<', '&lt;')
+    )
 
 
 @app.route('/')
@@ -78,18 +87,77 @@ async def package(registry, name):
 
     # If too old, refresh
     if datetime.utcnow() - last_refresh > MAX_AGE:
-        package = refresh_package(package)
+        package = await refresh_package(registry_obj, package)
         last_refresh = None
+
+    # Annotate versions with whether they are outdated
+    versions = annotate_versions(package.versions)
 
     return await render_template(
         'package.html',
         package=package,
+        versions=versions,
         rendered_description=Markup(render_description(
             package.description,
             package.description_type,
         )),
         last_refresh=last_refresh,
     )
+
+
+async def refresh_package(registry_obj, old_package):
+    logger.info(
+        "Refreshing package %r / %r...",
+        registry_obj.NAME,
+        old_package.name,
+    )
+
+    async with aiohttp.ClientSession() as http:
+        new_package = await registry_obj.get_package(old_package.name, http)
+
+    with db.begin() as trans:
+        # Update package data
+        update = {'last_refresh': datetime.utcnow()}
+        if new_package.name != old_package.name:
+            update['name'] = new_package.name
+        if new_package.author != old_package.author:
+            update['author'] = new_package.author
+        if new_package.description != old_package.description:
+            update['description'] = new_package.description
+        if new_package.description_type != old_package.description_type:
+            update['description_type'] = new_package.description_type
+        if new_package.repository != old_package.repository:
+            update['repository'] = new_package.repository
+        trans.execute(
+            database.packages.update()
+            .values(**update)
+        )
+
+        # Update versions
+        for num, version in new_package.versions.items():
+            if num not in old_package.versions:
+                trans.execute(
+                    database.package_versions.insert()
+                    .values(
+                        registry=registry_obj.NAME,
+                        name=registry_obj.normalize_name(new_package.name),
+                        version=num,
+                        release_date=version.release_date,
+                        yanked=bool(version.yanked),
+                    )
+                )
+
+    return new_package
+
+
+def annotate_versions(versions):
+    versions = sorted(
+        versions.values(),
+        key=lambda v: LooseVersion(v.version),
+        reverse=True,
+    )
+    # TODO
+    return versions
 
 
 def main():

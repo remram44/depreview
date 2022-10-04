@@ -8,6 +8,8 @@ _repository_url = re.compile(r'^https?://(github.com|gitlab.com|codeberg.org)(?:
 
 
 class PythonPyPI(BaseRegistry):
+    NAME = 'pypi'
+
     async def get_package(self, name, http):
         async with http.get(f'https://pypi.org/pypi/{name}/json') as resp:
             data = await resp.json()
@@ -37,10 +39,10 @@ class PythonPyPI(BaseRegistry):
                 repository = urls_lower['home_page']
 
         # Go over versions
-        versions = [
-            self._parse_version(k, v)
+        versions = {
+            k: self._parse_version(k, v)
             for k, v in data['releases'].items()
-        ]
+        }
 
         return Package(
             data['info']['name'],

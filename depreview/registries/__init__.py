@@ -18,8 +18,5 @@ def get_registry(registry):
         return None
 
     _registries[registry] = obj = cls()
+    assert obj.NAME == registry
     return obj
-
-
-async def refresh_package(package):
-    TODO
