@@ -1,10 +1,11 @@
 import aiohttp
+import bleach
 from datetime import datetime, timedelta
+import docutils.core
 import logging
 import markdown
 from markupsafe import Markup
 import os
-
 from packaging.version import Version
 from quart import Quart, render_template, redirect, url_for, request
 import sqlalchemy
@@ -27,11 +28,27 @@ app = Quart(__name__)
 db = database.connect(os.environ['DATABASE_URL'])
 
 
+def clean_html(html):
+    return bleach.clean(
+        html,
+        tags=[
+            'p', 'br', 'a', 'img',
+            'h1', 'h2', 'h3', 'h4', 'h5',
+            'strong', 'em', 'b', 'u', 'ul', 'ol', 'li',
+        ],
+        attributes={'a': ['href', 'title'], 'img': ['src', 'width', 'height']},
+        strip=True,
+    )
+
+
 def render_description(description, description_type):
     if description_type == 'text/markdown':
-        return markdown.markdown(description)
+        return clean_html(markdown.markdown(description))
     elif description_type == 'text/x-rst':
-        pass  # TODO
+        return clean_html(docutils.core.publish_parts(
+            description,
+            writer_name='html',
+        )['html_body'])
 
     return '<pre>%s</pre>' % (
         description.replace('&', '&amp;').replace('<', '&lt;')
@@ -101,6 +118,7 @@ async def package(registry, name):
         'package.html',
         package=package,
         versions=versions,
+        link=registry_obj.get_link(name),
         rendered_description=Markup(render_description(
             package.description,
             package.description_type,

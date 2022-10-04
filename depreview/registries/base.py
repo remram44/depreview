@@ -8,10 +8,14 @@ class BaseRegistry(object):
     def normalize_name(self, name):
         raise NotImplementedError
 
+    def get_link(self, name):
+        raise NotImplementedError
+
 
 class Package(object):
     def __init__(
         self,
+        registry,
         name,
         versions,
         *,
@@ -21,6 +25,7 @@ class Package(object):
         repository,
         last_refresh=None,
     ):
+        self.registry = registry
         self.name = name
         self.versions = versions
         self.author = author

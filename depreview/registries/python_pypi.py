@@ -15,8 +15,6 @@ class PythonPyPI(BaseRegistry):
     NAME = 'pypi'
 
     async def get_package(self, name, http):
-        logger.info("Loading %r / %r", self.NAME, name)
-
         async with http.get(f'https://pypi.org/pypi/{name}/json') as resp:
             data = await resp.json()
 
@@ -33,7 +31,7 @@ class PythonPyPI(BaseRegistry):
 
         # Find repository
         repository = None
-        for keyword in ('source', 'repository'):
+        for keyword in ('source', 'source code', 'repository'):
             if keyword in urls_lower:
                 repository = urls_lower[keyword][0]
                 break
@@ -42,7 +40,7 @@ class PythonPyPI(BaseRegistry):
                 _repository_url.match(urls_lower['home_page'][0])
                 or urls_lower['home_page'][0].endswith('.git')
             ):
-                repository = urls_lower['home_page']
+                repository = urls_lower['home_page'][0]
 
         # Go over versions
         versions = {
@@ -52,6 +50,7 @@ class PythonPyPI(BaseRegistry):
         }
 
         return Package(
+            self.NAME,
             data['info']['name'],
             versions,
             author=author,
@@ -71,12 +70,6 @@ class PythonPyPI(BaseRegistry):
             if not build['yanked']:
                 all_yanked = False
 
-        logger.info(
-            "Version: %r %s%s",
-            version,
-            first_date.isoformat() if first_date else 'no-date',
-            ' yanked' if all_yanked else '',
-        )
         return PackageVersion(
             version,
             release_date=first_date,
@@ -85,3 +78,6 @@ class PythonPyPI(BaseRegistry):
 
     def normalize_name(self, name):
         return name.lower().replace('_', '-')
+
+    def get_link(self, name):
+        return f'https://pypi.org/project/{name}/'

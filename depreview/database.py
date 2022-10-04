@@ -154,6 +154,7 @@ def get_package(db, registry, normalized_name):
     }
 
     package = Package(
+        registry,
         orig_name,
         versions,
         author=author,

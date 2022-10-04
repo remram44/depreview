@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 
 {% block contents -%}
-<h1>{{ package.name }}</h1>
+<h1>{{ package.name }} (<a href="{{ link }}">{{ package.registry }}</a>)</h1>
 {% if package.last_refresh %}
 <p>Last updated: {{ package.last_refresh }}</p>
 {% endif %}
 <p>Author: {% if package.author %}{{ package.author }}{% else %}unknown{% endif %}</p>
+<p>Repository: {% if package.repository %}<a href="{{ package.repository }}">{{ package.repository }}</a>{% else %}unknown{% endif %}</p>
 {% if package.description %}
 <p>Description:</p>
-<blockquote>
+<blockquote style="max-height: 50vh; overflow: auto; border: 1px solid black; border-left: 0.5em solid grey;">
 {{ rendered_description }}
 </blockquote>
 {% else %}
 <p>Description: none</p>
 {% endif %}
-<p>Repository: {% if package.repository %}{{ package.repository }}{% else %}unknown{% endif %}</p>
 {% for version in versions %}
 <p>Version {{ version.version }}, released {{ version.release_date }}{% if version.yanked %} YANKED{% endif %}</p>
 {% endfor %}
