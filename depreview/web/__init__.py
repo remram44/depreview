@@ -55,7 +55,7 @@ def render_description(description, description_type):
     )
 
 
-@app.route('/')
+@app.get('/')
 async def index():
     latest_changes = db.execute(
         sqlalchemy.select([
@@ -85,7 +85,7 @@ async def index():
     )
 
 
-@app.route('/p/<registry>/<name>')
+@app.get('/p/<registry>/<name>')
 async def package(registry, name):
     registry_obj = get_registry(registry)
     if registry_obj is None:
@@ -126,7 +126,7 @@ async def package(registry, name):
     )
 
 
-@app.route('/search', methods=['POST'])
+@app.post('/search')
 async def search_package():
     form = await request.form
     registry = form['registry']
@@ -146,7 +146,7 @@ async def search_package():
     )
 
 
-@app.route('/upload-list', methods=['POST'])
+@app.post('/upload-list')
 async def upload_list():
     TODO
 
