@@ -32,7 +32,7 @@ def clean_html(html):
     return bleach.clean(
         html,
         tags=[
-            'p', 'br', 'a', 'img',
+            'p', 'br', 'a', 'img', 'pre', 'code', 'section',
             'h1', 'h2', 'h3', 'h4', 'h5',
             'strong', 'em', 'b', 'u', 'ul', 'ol', 'li',
         ],
