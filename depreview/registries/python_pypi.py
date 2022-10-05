@@ -27,7 +27,7 @@ class PythonPyPI(BaseRegistry):
         urls_lower = {}
         if 'home_page' in data['info']:
             urls_lower['home_page'] = [data['info']['home_page']]
-        for k, v in data['info'].get('project_urls', {}).items():
+        for k, v in (data['info'].get('project_urls') or {}).items():
             urls_lower.setdefault(k.lower(), []).append(v)
 
         # Find repository
