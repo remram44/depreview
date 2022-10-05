@@ -4,8 +4,17 @@
 <h1>Dependency list</h1>
 <p>{{ format }} for {{ registry }}</p>
 <ul>
-  {% for name, version in deps %}
-  <li>{{ name }} {{ version }}</li>
+  {% for package, version in deps %}
+  <li>
+    {{ package.name }} {{ version.version }}
+    {% if version.status[0] == 'yanked' %}
+    <span style="color: red;">{{ version.status[1] }}</span>
+    {% elif version.status[0] == 'very-outdated' %}
+    <span style="color: red;">{{ version.status[1] }}</span>
+    {% elif version.status[0] == 'outdated' %}
+    <span style="color: blue;">{{ version.status[1] }}</span>
+    {% endif %}
+  </li>
   {% endfor %}
 </ul>
 {%- endblock %}

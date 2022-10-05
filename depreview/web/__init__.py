@@ -15,6 +15,7 @@ from .. import database
 from ..decision import annotate_versions
 from ..parse import parse_package_list, UnknownFormat
 from ..registries import get_registry, get_all_registry_names
+from ..registries.base import Package, PackageVersion
 
 
 logging.basicConfig(level=logging.INFO)
@@ -105,17 +106,22 @@ async def package(registry, name):
             301,
         )
 
-    # Get from database
-    package = database.get_package(db, registry, name)
-
-    # If too old, refresh
-    if package is None:
-        package = await load_package(registry_obj, name)
-    elif datetime.utcnow() - package.last_refresh > MAX_AGE:
-        package = await refresh_package(registry_obj, package)
+    package = await get_package(registry_obj, name)
 
     # Get the statements
-    statements = list(database.get_statements(db, registry, name))
+    statements = list(db.execute(
+        sqlalchemy.select([
+            database.statements.c.id,
+            database.statements.c.type,
+            database.statements.c.proof,
+            database.statements.c.created,
+            database.statements.c.trust,
+        ])
+        .where(
+            database.statements.c.registry == registry,
+            database.statements.c.name == normalized_name,
+        )
+    ))
 
     # Annotate versions with whether they are outdated
     versions = annotate_versions(
@@ -209,13 +215,20 @@ async def view_list(list_id):
     except crypto.InvalidId:
         return await render_template('list_notfound.html'), 404
 
-    # Get it from database
+    # Get packages from the database
     rows = db.execute(
         sqlalchemy.select([
             database.dependency_lists.c.registry,
-            database.dependency_lists.c.format,
             database.dependency_list_items.c.name,
+            database.packages.c.orig_name,
+            database.packages.c.last_refresh,
+            database.packages.c.repository,
+            database.packages.c.author,
+            database.packages.c.description,
+            database.packages.c.description_type,
+            database.dependency_lists.c.format,
             database.dependency_list_items.c.version,
+            database.packages.c.name,
         ])
         .select_from(
             database.dependency_lists
@@ -224,17 +237,103 @@ async def view_list(list_id):
                 database.dependency_lists.c.id
                 == database.dependency_list_items.c.list_id,
             )
+            .outerjoin(
+                database.packages,
+                database.dependency_list_items.c.name
+                == database.packages.c.name,
+                database.dependency_lists.c.registry
+                == database.packages.c.registry,
+            )
         )
         .where(database.dependency_lists.c.id == list_id)
     )
     registry = format = None
-    deps = []
+    deps = {}
     for row in rows:
-        registry, format, name, version = row
-        deps.append((name, version))
+        [
+            registry, name, orig_name, last_refresh, repository, author,
+            description, description_type,
+            format, version, _,
+        ] = row
+        if orig_name is None:
+            package = None
+        else:
+            package = Package(
+                registry, orig_name, {},
+                author=author, description=description,
+                description_type=description_type,
+                repository=repository,
+                last_refresh=last_refresh,
+            )
+        deps[name] = package, version
 
     if registry is None:
         return await render_template('list_notfound.html'), 404
+    registry_obj = get_registry(registry)
+
+    # Fill in versions
+    rows = db.execute(
+        sqlalchemy.select([
+            database.package_versions.c.name,
+            database.package_versions.c.version,
+            database.package_versions.c.release_date,
+            database.package_versions.c.yanked,
+        ])
+        .select_from(
+            database.dependency_list_items
+            .join(
+                database.package_versions,
+                database.package_versions.c.registry == registry,
+                database.package_versions.c.name
+                == database.dependency_list_items.c.name,
+            )
+        )
+        .where(database.dependency_list_items.c.list_id == list_id)
+    )
+    for row in rows:
+        name, version, release_date, yanked = row
+        deps[name][0].versions[version] = PackageVersion(
+            version,
+            release_date=release_date,
+            yanked=bool(yanked),
+        )
+
+    # Get missing packages from registry
+    if logger.isEnabledFor(logging.INFO):
+        missing_packages = sum(1 for pkg, _ in deps.values() if pkg is None)
+        if missing_packages > 0:
+            logger.info(
+                '%d packages not in database, getting from registry',
+                missing_packages,
+            )
+    for name, (package, version) in deps.items():
+        if package is None:
+            package = await load_package(registry_obj, name)
+            deps[name] = package, version
+
+    # TODO: Get statements
+    statements = []
+
+    sorted_list = sorted(deps.items(), key=lambda p: p[0])
+    deps = []
+    for _, (package, required_version) in sorted_list:
+        # Annotate versions
+        annotated = annotate_versions(
+            registry_obj,
+            package.versions,
+            statements,
+        )
+
+        version = None  # Avoids warning
+        # Find the one we want
+        for annotation in annotated:
+            if annotation.version == required_version:
+                version = annotation
+
+        deps.append((
+            package,
+            version,
+        ))
 
     return await render_template(
         'list.html',
@@ -242,6 +341,78 @@ async def view_list(list_id):
         format=format,
         deps=deps,
     )
+
+
+async def get_package(registry_obj, normalized_name):
+    # Get from database
+    package = db.execute(
+        sqlalchemy.select([
+            database.packages.c.orig_name,
+            database.packages.c.last_refresh,
+            database.packages.c.repository,
+            database.packages.c.author,
+            database.packages.c.description,
+            database.packages.c.description_type,
+        ])
+        .select_from(database.packages)
+        .where(
+            database.packages.c.registry == registry_obj.NAME,
+            database.packages.c.name == normalized_name,
+        )
+        .limit(1)
+    ).first()
+
+    # If not in database, load from registry API
+    if not package:
+        return await load_package(registry_obj, normalized_name)
+
+    [
+        orig_name,
+        last_refresh,
+        repository,
+        author,
+        description,
+        description_type,
+    ] = package
+
+    versions = db.execute(
+        sqlalchemy.select([
+            database.package_versions.c.version,
+            database.package_versions.c.release_date,
+            database.package_versions.c.yanked,
+        ])
+        .select_from(database.package_versions)
+        .where(
+            database.package_versions.c.registry == registry_obj.NAME,
+            database.package_versions.c.name == normalized_name,
+        )
+        .order_by(desc(database.package_versions.c.release_date))
+    )
+    versions = {
+        version: PackageVersion(
+            version,
+            release_date=release_date,
+            yanked=yanked,
+        )
+        for version, release_date, yanked in versions
+    }
+
+    package = Package(
+        registry_obj.NAME,
+        orig_name,
+        versions,
+        author=author,
+        description=description,
+        description_type=description_type,
+        repository=repository,
+        last_refresh=last_refresh,
+    )
+
+    # If too old, refresh
+    if datetime.utcnow() - package.last_refresh > MAX_AGE:
+        package = await refresh_package(registry_obj, package)
+
+    return package
 
 
 async def load_package(registry_obj, normalized_name):
@@ -312,7 +483,7 @@ async def refresh_package(registry_obj, old_package):
             .values(**update)
             .where(
                 database.packages.c.registry == registry_obj.NAME,
-                database.packages.c.name == old_package['name'],
+                database.packages.c.name == old_package.name,
             )
         )
 

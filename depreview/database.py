@@ -1,10 +1,8 @@
 import logging
 import sqlalchemy.event
-from sqlalchemy import MetaData, Table, desc, engine_from_config
+from sqlalchemy import MetaData, Table, engine_from_config
 from sqlalchemy.schema import Column, ForeignKey, ForeignKeyConstraint
 from sqlalchemy.types import Boolean, DateTime, Integer, String
-
-from .registries.base import Package, PackageVersion
 
 
 logger = logging.getLogger(__name__)
@@ -131,82 +129,3 @@ def connect(db_url):
         )
 
     return engine
-
-
-def get_package(db, registry, normalized_name):
-    package = db.execute(
-        sqlalchemy.select([
-            packages.c.orig_name,
-            packages.c.last_refresh,
-            packages.c.repository,
-            packages.c.author,
-            packages.c.description,
-            packages.c.description_type,
-        ])
-        .select_from(packages)
-        .where(
-            packages.c.registry == registry,
-            packages.c.name == normalized_name,
-        )
-        .limit(1)
-    ).first()
-    if not package:
-        return None
-    [
-        orig_name,
-        last_refresh,
-        repository,
-        author,
-        description,
-        description_type,
-    ] = package
-
-    versions = db.execute(
-        sqlalchemy.select([
-            package_versions.c.version,
-            package_versions.c.release_date,
-            package_versions.c.yanked,
-        ])
-        .select_from(package_versions)
-        .where(
-            package_versions.c.registry == registry,
-            package_versions.c.name == normalized_name,
-        )
-        .order_by(desc(package_versions.c.release_date))
-    )
-    versions = {
-        version: PackageVersion(
-            version,
-            release_date=release_date,
-            yanked=yanked,
-        )
-        for version, release_date, yanked in versions
-    }
-
-    package = Package(
-        registry,
-        orig_name,
-        versions,
-        author=author,
-        description=description,
-        description_type=description_type,
-        repository=repository,
-        last_refresh=last_refresh,
-    )
-    return package
-
-
-def get_statements(db, registry, normalized_name):
-    return db.execute(
-        sqlalchemy.select([
-            statements.c.id,
-            statements.c.type,
-            statements.c.proof,
-            statements.c.created,
-            statements.c.trust,
-        ])
-        .where(
-            statements.c.registry == registry,
-            statements.c.name == normalized_name,
-        )
-    )
