@@ -46,7 +46,7 @@ def format_time(td):
         return _format_count(years, 'year')
 
 
-def annotate_versions(registry_obj, versions):
+def annotate_versions(registry_obj, versions, statements):
     versions = sorted(
         versions.values(),
         key=lambda v: registry_obj.version_comparison_key(v.version),

@@ -177,3 +177,19 @@ def get_package(db, registry, normalized_name):
         last_refresh=last_refresh,
     )
     return package
+
+
+def get_statements(db, registry, normalized_name):
+    return db.execute(
+        sqlalchemy.select([
+            statements.c.id,
+            statements.c.type,
+            statements.c.proof,
+            statements.c.created,
+            statements.c.trust,
+        ])
+        .where(
+            statements.c.registry == registry,
+            statements.c.name == normalized_name,
+        )
+    )

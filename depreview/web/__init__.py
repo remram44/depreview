@@ -112,8 +112,15 @@ async def package(registry, name):
     elif datetime.utcnow() - package.last_refresh > MAX_AGE:
         package = await refresh_package(registry_obj, package)
 
+    # Get the statements
+    statements = list(database.get_statements(db, registry, name))
+
     # Annotate versions with whether they are outdated
-    versions = annotate_versions(registry_obj, package.versions)
+    versions = annotate_versions(
+        registry_obj,
+        package.versions,
+        statements,
+    )
 
     return await render_template(
         'package.html',
