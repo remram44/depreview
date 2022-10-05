@@ -78,6 +78,7 @@ def annotate_versions(registry_obj, versions, statements):
         annotated.append(version)
 
         # We are going in reverse, so the next version is before
-        next_version = version
+        if not registry_obj.is_prerelease(version.version):
+            next_version = version
 
     return annotated

@@ -85,3 +85,6 @@ class PythonPyPI(BaseRegistry):
 
     def version_comparison_key(self, version):
         return packaging.version.Version(version)
+
+    def is_prerelease(self, version):
+        return packaging.version.Version(version).is_prerelease

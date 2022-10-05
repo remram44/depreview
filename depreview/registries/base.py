@@ -14,6 +14,9 @@ class BaseRegistry(object):
     def version_comparison_key(self, version):
         raise NotImplementedError
 
+    def is_prerelease(self, version):
+        return False
+
 
 class Package(object):
     def __init__(
