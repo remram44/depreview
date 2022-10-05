@@ -10,6 +10,7 @@ from quart import Quart, render_template, redirect, url_for, request
 import sqlalchemy
 from sqlalchemy import desc
 
+from .. import crypto
 from .. import database
 from ..decision import annotate_versions
 from ..parse import parse_package_list, UnknownFormat
@@ -159,19 +160,87 @@ async def search_package():
 async def upload_list():
     list_file = (await request.files)['list']
 
+    # Parse the file
     try:
-        registry, format, packages = parse_package_list(list_file)
+        registry, format, deps = parse_package_list(list_file)
     except UnknownFormat as e:
         return await render_template(
             'list_invalid.html',
             error=e.args[0],
         )
 
+    # Normalize names
+    registry_obj = get_registry(registry)
+    deps = [
+        (registry_obj.normalize_name(name), version)
+        for name, version in deps
+    ]
+
+    # Insert it in the database
+    with db.begin() as trans:
+        list_id, = trans.execute(
+            database.dependency_lists.insert()
+            .values(
+                created=datetime.utcnow(),
+                registry=registry,
+                format=format,
+            )
+        ).inserted_primary_key
+        for dep_name, dep_version in deps:
+            trans.execute(
+                database.dependency_list_items.insert()
+                .values(
+                    list_id=list_id,
+                    name=dep_name,
+                    version=dep_version,
+                )
+            )
+
+    return redirect(
+        url_for('view_list', list_id=crypto.encode_id(list_id)),
+        303,
+    )
+
+
+@app.get('/list/<list_id>')
+async def view_list(list_id):
+    try:
+        list_id = crypto.decode_id(list_id)
+    except crypto.InvalidId:
+        return await render_template('list_notfound.html'), 404
+
+    # Get it from database
+    rows = db.execute(
+        sqlalchemy.select([
+            database.dependency_lists.c.registry,
+            database.dependency_lists.c.format,
+            database.dependency_list_items.c.name,
+            database.dependency_list_items.c.version,
+        ])
+        .select_from(
+            database.dependency_lists
+            .join(
+                database.dependency_list_items,
+                database.dependency_lists.c.id
+                == database.dependency_list_items.c.list_id,
+            )
+        )
+        .where(database.dependency_lists.c.id == list_id)
+    )
+    registry = format = None
+    deps = []
+    for row in rows:
+        registry, format, name, version = row
+        deps.append((name, version))
+
+    if registry is None:
+        return await render_template('list_notfound.html'), 404
+
     return await render_template(
         'list.html',
         registry=registry,
         format=format,
-        packages=packages,
+        deps=deps,
     )
 
 

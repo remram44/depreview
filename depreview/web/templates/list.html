@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block contents -%}
+<h1>Dependency list</h1>
+<p>{{ format }} for {{ registry }}</p>
+<ul>
+  {% for name, version in deps %}
+  <li>{{ name }} {{ version }}</li>
+  {% endfor %}
+</ul>
+{%- endblock %}

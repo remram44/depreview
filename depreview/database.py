@@ -84,6 +84,23 @@ reviews = Table(
     Column('type', String, nullable=False),
 )
 
+dependency_lists = Table(
+    'dependency_lists',
+    metadata,
+    Column('id', Integer, primary_key=True),
+    Column('created', DateTime, nullable=False),
+    Column('registry', String, nullable=False),
+    Column('format', String, nullable=False),
+)
+
+dependency_list_items = Table(
+    'dependency_list_items',
+    metadata,
+    Column('list_id', Integer, primary_key=True),
+    Column('name', String, primary_key=True),
+    Column('version', String),
+)
+
 
 def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
