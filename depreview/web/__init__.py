@@ -12,6 +12,7 @@ from sqlalchemy import desc
 
 from .. import database
 from ..decision import annotate_versions
+from ..parse import parse_package_list, UnknownFormat
 from ..registries import get_registry, get_all_registry_names
 
 
@@ -156,7 +157,22 @@ async def search_package():
 
 @app.post('/upload-list')
 async def upload_list():
-    TODO
+    list_file = (await request.files)['list']
+
+    try:
+        registry, format, packages = parse_package_list(list_file)
+    except UnknownFormat as e:
+        return await render_template(
+            'list_invalid.html',
+            error=e.args[0],
+        )
+
+    return await render_template(
+        'list.html',
+        registry=registry,
+        format=format,
+        packages=packages,
+    )
 
 
 async def load_package(registry_obj, normalized_name):
