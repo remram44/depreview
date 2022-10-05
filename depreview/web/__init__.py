@@ -8,7 +8,7 @@ from markupsafe import Markup
 import os
 from quart import Quart, render_template, redirect, url_for, request
 import sqlalchemy
-from sqlalchemy import desc
+from sqlalchemy import and_, desc
 
 from .. import crypto
 from .. import database
@@ -239,10 +239,12 @@ async def view_list(list_id):
             )
             .outerjoin(
                 database.packages,
-                database.dependency_list_items.c.name
-                == database.packages.c.name,
-                database.dependency_lists.c.registry
-                == database.packages.c.registry,
+                and_(
+                    database.dependency_list_items.c.name
+                    == database.packages.c.name,
+                    database.dependency_lists.c.registry
+                    == database.packages.c.registry,
+                ),
             )
         )
         .where(database.dependency_lists.c.id == list_id)
@@ -283,9 +285,11 @@ async def view_list(list_id):
             database.dependency_list_items
             .join(
                 database.package_versions,
-                database.package_versions.c.registry == registry,
-                database.package_versions.c.name
-                == database.dependency_list_items.c.name,
+                and_(
+                    database.package_versions.c.name
+                    == database.dependency_list_items.c.name,
+                    database.package_versions.c.registry == registry,
+                ),
             )
         )
         .where(database.dependency_list_items.c.list_id == list_id)
