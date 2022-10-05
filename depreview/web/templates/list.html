@@ -6,7 +6,7 @@
 <ul>
   {% for package, version in deps %}
   <li>
-    {{ package.name }} {{ version.version }}
+    <a href="{{ url_for('package', registry=registry, name=package.name) }}">{{ package.name }}</a> {{ version.version }}
     {% if version.status[0] == 'yanked' %}
     <span style="color: red;">{{ version.status[1] }}</span>
     {% elif version.status[0] == 'very-outdated' %}
