@@ -1,0 +1,22 @@
+name: Test
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+      with:
+        python-version: "3.8"
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        $HOME/.local/bin/poetry config virtualenvs.create false
+    - name: Install dependencies
+      run: $HOME/.local/bin/poetry install
+    - name: Run tests
+      run: python3 -m unittest discover tests
