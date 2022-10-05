@@ -59,23 +59,24 @@ def render_description(description, description_type):
 async def index():
     latest_changes = db.execute(
         sqlalchemy.select([
-            database.reviews.c.created,
-            database.reviews.c.registry,
-            database.reviews.c.name,
-            database.reviews.c.type,
-            database.reviews.c.proof,
-            database.reviews.c.user_id,
+            database.statements.c.created,
+            database.statements.c.registry,
+            database.statements.c.name,
+            database.statements.c.type,
+            database.statements.c.proof,
+            database.statements.c.user_id,
+            database.statements.c.trust,
             database.users.c.login,
             database.users.c.name,
         ])
         .select_from(
-            database.reviews
+            database.statements
             .join(
                 database.users,
-                database.reviews.c.user_id == database.users.c.id,
+                database.statements.c.user_id == database.users.c.id,
             )
         )
-        .order_by(desc(database.reviews.c.created))
+        .order_by(desc(database.statements.c.created))
         .limit(10)
     )
     return await render_template(

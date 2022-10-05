@@ -55,20 +55,33 @@ users = Table(
     Column('name', String, nullable=False),
 )
 
-reviews = Table(
-    'reviews',
+statements = Table(
+    'statements',
     metadata,
     Column('id', Integer, primary_key=True),
-    Column('registry', String, primary_key=True),
-    Column('name', String, primary_key=True),
+    Column('registry', String),
+    Column('name', String),
     Column('user_id', Integer, ForeignKey('users.id'), nullable=False),
     Column('type', String, nullable=False),
     Column('proof', String, nullable=False),
     Column('created', DateTime, nullable=False),
+    Column('trust', Integer, nullable=False),
     ForeignKeyConstraint(
         ['registry', 'name'],
         ['packages.registry', 'packages.name'],
     ),
+)
+
+reviews = Table(
+    'reviews',
+    metadata,
+    Column(
+        'statement_id', Integer,
+        ForeignKey('statements.id'),
+        primary_key=True,
+    ),
+    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('type', String, nullable=False),
 )
 
 
