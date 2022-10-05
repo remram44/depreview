@@ -44,10 +44,16 @@ class PythonPyPI(BaseRegistry):
                 repository = urls_lower['home_page'][0]
 
         # Go over versions
+        def is_version_valid(num):
+            try:
+                packaging.version.Version(num)
+                return True
+            except packaging.version.InvalidVersion:
+                return False
         versions = {
             k: self._parse_version(k, v)
             for k, v in data['releases'].items()
-            if v
+            if v and is_version_valid(k)
         }
 
         return Package(
