@@ -16,6 +16,7 @@ packaging = "*"
 docutils = "*"
 bleach = "*"
 tomli = ">=2.0.1,<3"
+cryptography = "*"
 
 [tool.poetry.plugins."depreview.registries"]
 pypi = "depreview.registries.python_pypi:PythonPyPI"
