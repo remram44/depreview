@@ -22,9 +22,25 @@ def poetry_lock(list_file):
                 or not isinstance(package['version'], str)
             ):
                 raise UnknownFormat('Invalid lock file')
+            dependencies = []
+            if package.get('dependencies'):
+                if not isinstance(package['dependencies'], dict):
+                    raise UnknownFormat('Invalid lock file')
+                for name, version in package['dependencies'].items():
+                    if (
+                        not isinstance(name, str)
+                        or not isinstance(version, str)
+                    ):
+                        raise UnknownFormat('Invalid lock file')
+                    dependencies.append((
+                        PythonPyPI.normalize_name(name),
+                        version,
+                    ))
+            # TODO: Support extras
             packages.append((
                 PythonPyPI.normalize_name(package['name']),
                 '==' + package['version'],
+                dependencies,
             ))
         return packages
     except KeyError:
@@ -93,7 +109,11 @@ def pyproject_toml(list_file):
                     # Doesn't count
                     continue
                 norm_name = PythonPyPI.normalize_name(orig_name)
-                packages.append((norm_name, poetry_to_standard_spec(version)))
+                packages.append((
+                    norm_name,
+                    poetry_to_standard_spec(version),
+                    None,
+                ))
 
         add_list(data['tool']['poetry']['dependencies'])
         if data['tool']['poetry'].get('dev-dependencies'):
@@ -117,6 +137,7 @@ def requirements_txt(list_file):
                 packages.append((
                     PythonPyPI.normalize_name(m.group(1).decode('ascii')),
                     '==' + m.group(2).decode('ascii'),
+                    None,
                 ))
             if line[-1:] == b'\\':
                 escaped = True

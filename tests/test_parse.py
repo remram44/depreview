@@ -17,25 +17,26 @@ class TestParse(unittest.TestCase):
         self.assertEqual(
             result,
             [
-                ('aiofiles', '>=22.1.2,<23.0.0'),
-                ('aiohttp', ''),
-                ('aiosignal', '==1.2.0'),
-                ('attrs', '>=22.1.2,<22.2.0'),
-            ]
+                ('aiofiles', '>=22.1.2,<23.0.0', None),
+                ('aiohttp', '', None),
+                ('aiosignal', '==1.2.0', None),
+                ('attrs', '>=22.1.2,<22.2.0', None),
+            ],
         )
 
     def test_poetry_lock(self):
         result = parse.poetry_lock(BytesIO(
             b'[[package]]\nname = "aiofiles"\nversion = "22.1.0"\n\n'
             + b'[[package]]\nname = "aiohttp"\nversion = "3.8.3"\n\n'
+            + b'[package.dependencies]\naiosignal = ">=1.1.2"\n'
             + b'[metadata]\nlock-version = "1.1"\n\n'
             + b'[metadata.files]\naiofiles = []\naiohttp = []\n'
         ))
         self.assertEqual(
             result,
             [
-                ('aiofiles', '==22.1.0'),
-                ('aiohttp', '==3.8.3'),
+                ('aiofiles', '==22.1.0', []),
+                ('aiohttp', '==3.8.3', [('aiosignal', '>=1.1.2')]),
             ],
         )
 
@@ -51,8 +52,8 @@ class TestParse(unittest.TestCase):
         self.assertEqual(
             result,
             [
-                ('aiofiles', '==22.1.0'),
-                ('aiohttp', '==3.8.3'),
-                ('aiosignal', '==1.2.0'),
-            ]
+                ('aiofiles', '==22.1.0', None),
+                ('aiohttp', '==3.8.3', None),
+                ('aiosignal', '==1.2.0', None),
+            ],
         )

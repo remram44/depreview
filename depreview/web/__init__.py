@@ -210,12 +210,12 @@ async def upload_list():
     if direct_dependencies is not None:
         direct_dependencies = [
             (registry_obj.normalize_name(name), version)
-            for name, version in direct_dependencies
+            for name, version, depends_on in direct_dependencies
         ]
     if all_dependencies is not None:
         all_dependencies = [
             (registry_obj.normalize_name(name), version)
-            for name, version in all_dependencies
+            for name, version, depends_on in all_dependencies
         ]
 
     if direct_dependencies is None:
@@ -223,7 +223,7 @@ async def upload_list():
     else:
         direct_dependency_names = {
             name
-            for name, version in direct_dependencies
+            for name, version, depends_on in direct_dependencies
         }
 
     # Insert in the database
@@ -236,7 +236,7 @@ async def upload_list():
                 format=list_format,
             )
         ).inserted_primary_key
-        for dep_name, dep_version in all_dependencies:
+        for dep_name, dep_version, depends_on in all_dependencies:
             if direct_dependency_names is None:
                 direct = None  # We don't know
             else:
