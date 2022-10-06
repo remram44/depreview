@@ -46,7 +46,7 @@ class PythonPyPI(BaseRegistry):
         # Go over versions
         def is_version_valid(num):
             try:
-                packaging.version.Version(num)
+                packaging.version.parse(num)
                 return True
             except packaging.version.InvalidVersion:
                 return False
@@ -90,7 +90,7 @@ class PythonPyPI(BaseRegistry):
         return f'https://pypi.org/project/{name}/'
 
     def version_comparison_key(self, version):
-        return packaging.version.Version(version)
+        return packaging.version.parse(version)
 
     def is_prerelease(self, version):
-        return packaging.version.Version(version).is_prerelease
+        return packaging.version.parse(version).is_prerelease
