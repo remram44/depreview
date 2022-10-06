@@ -4,24 +4,100 @@
 <h1>DepReview</h1>
 <p>This platform is designed to help with assessing your dependencies. It allows you to check the status of specific software packages, or update a list of your dependencies in bulk to get an overview of potential problems.</p>
 <p>The data is a mix of information collected automatically from package registries (e.g. latest versions numbers and dates) and manually-input information. This aims to capture the fact that a project might not be getting updates because it is stable rather than abandoned, and that a project might have been declared deprecated by its author even if an update just went out. We also want to capture other details such as a package getting a new name, activity resuming in a fork, multiple major versions being supported, etc.</p>
+
 <form action="{{ url_for('search_package') }}" method="post">
-  <p>
-    Search for a package
-    <input type="text" name="name" placeholder="scikit-learn">
-    on
-    <select name="registry">
-      {% for registry in registry_names %}
-      <option value="{{ registry }}">{{ registry }}</option>
-      {% endfor %}
-    </select>
-    <input type="submit" value="Go">
-  </p>
+  <div class="mb-3 row">
+    <div class="col-auto">
+      <label for="package-name" class="form-label">Search for a package:</label>
+    </div>
+    <div class="col-auto">
+      <input type="text" name="name" id="package-name" placeholder="scikit-learn">
+    </div>
+    <div class="col-auto">
+      on
+      <select name="registry">
+        {% for registry in registry_names %}
+        <option value="{{ registry }}">{{ registry }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <input type="submit" value="Go">
+    </div>
+  </div>
 </form>
-<form action="{{ url_for('upload_list') }}" method="post" enctype="multipart/form-data">
-  <p>
-    Upload your list of dependencies:
-    <input type="file" name="list">
-    <input type="submit" value="Load">
-  </p>
-</form>
+
+<p>Upload your list of dependencies:</p>
+
+<ul class="nav nav-tabs" role="tablist">
+  <li class="nav-item">
+    <button class="nav-link active" id="poetry-tab" data-bs-toggle="tab" data-bs-target="#poetry-pane" type="button" role="tab" aria-controls="poetry-pane" aria-selected="true">
+      Python Poetry
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" id="requirements-tab" data-bs-toggle="tab" data-bs-target="#requirements-pane" type="button" role="tab" aria-controls="requirements-pane">
+      Python requirements.txt
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link disabled" id="npm-tab" data-bs-toggle="tab" data-bs-target="#npm-pane" type="button" role="tab" aria-controls="npm-pane">
+      Node NPM (coming soon)
+    </button>
+  </li>
+</ul>
+<div class="tab-content" id="list-tab-content">
+  <div class="tab-pane show active pt-3" id="poetry-pane" role="tabpanel" aria-labelledby="poetry-tab" tabindex="0">
+    <form action="{{ url_for('upload_list') }}" method="post" enctype="multipart/form-data">
+      <p>Provide <strong>either</strong> your <code>pyproject.toml</code> or <code>poetry.lock</code> file to get a report of your direct dependencies, or all your dependencies, respectively.</p>
+      <p>Provide <strong>both</strong> files if you want the complete report (tree view).</p>
+      <div class="row mb-3">
+        <div class="col-md-3">
+          <label for="poetry-lock" class="form-label"><code>poetry.lock</code></label>
+        </div>
+        <div class="col-md-9">
+          <input type="file" class="form-control" name="poetry-lock" id="poetry-lock" accept=".lock">
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col-md-3">
+          <label for="pyproject-toml" class="form-label"><code>pyproject.toml</code></label>
+        </div>
+        <div class="col-md-9">
+          <input type="file" class="form-control" name="pyproject-toml" id="pyproject-toml" accept=".toml">
+        </div>
+      </div>
+      <input type="submit" class="btn btn-primary" id="poetry-submit" value="Load">
+    </form>
+  </div>
+
+  <div class="tab-pane pt-3" id="requirements-pane" role="tabpanel" aria-labelledby="requirements-tab" tabindex="0">
+    <form action="{{ url_for('upload_list') }}" method="post" enctype="multipart/form-data">
+      <div class="mb-3">
+        <input type="file" class="form-control" name="requirements-txt">
+      </div>
+      <input type="submit" class="btn btn-primary" id="requirements-submit" value="Load">
+    </form>
+  </div>
+
+  <div class="tab-pane" id="npm-pane" role="tabpanel" aria-labelledby="npm-tab" tabindex="0">
+  </div>
+</div>
+
+<script>
+  let poetryLock = document.getElementById('poetry-lock');
+  let pyprojectToml = document.getElementById('pyproject-toml');
+  let poetrySubmit = document.getElementById('poetry-submit');
+  function updatePoetrySubmitButton() {
+    console.log('update');
+    if(poetryLock.value || pyprojectToml.value) {
+      poetrySubmit.removeAttribute('disabled');
+    } else {
+      poetrySubmit.setAttribute('disabled', '');
+    }
+  }
+  poetryLock.addEventListener('change', updatePoetrySubmitButton);
+  pyprojectToml.addEventListener('change', updatePoetrySubmitButton);
+  updatePoetrySubmitButton();
+</script>
 {%- endblock %}

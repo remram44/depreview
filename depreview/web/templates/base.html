@@ -1,11 +1,22 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+
     <title>DepReview</title>
+    <meta name="description" content="A web-based platform to review your dependencies. It aims at helping developers check the status of the software packages they depend on.">
   </head>
   <body>
-    {%- block contents -%}
-    {%- endblock %}
+    <div class="container" role="main">
+
+      {%- block contents -%}
+      {%- endblock %}
+
+    </div>
+
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
   </body>
 </html>

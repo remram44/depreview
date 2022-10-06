@@ -13,7 +13,7 @@ from sqlalchemy import and_, desc
 from .. import crypto
 from .. import database
 from ..decision import annotate_versions
-from ..parse import parse_package_list, UnknownFormat
+from .. import parse
 from ..registries import get_registry, get_all_registry_names
 from ..registries.base import Package, PackageVersion
 
@@ -164,12 +164,41 @@ async def search_package():
 
 @app.post('/upload-list')
 async def upload_list():
-    list_file = (await request.files)['list']
-
-    # Parse the file
+    files = await request.files
+    all_dependencies = None
+    direct_dependencies = None
+    registry = list_format = None
+    # Note: use files.get(...) to check for files
+    # If a file input was left empty, the dict is still populated, but the
+    # FileStorage object is false-ish
     try:
-        registry, format, deps = parse_package_list(list_file)
-    except UnknownFormat as e:
+        if 'poetry-lock' in files or 'pyproject-toml' in files:
+            # Python Poetry
+            registry = 'pypi'
+            list_format = 'poetry'
+            if files.get('poetry-lock'):
+                all_dependencies = parse.poetry_lock(
+                    files['poetry-lock'],
+                )
+            if files.get('pyproject-toml'):
+                direct_dependencies = parse.pyproject_toml(
+                    files['pyproject-toml'],
+                )
+            if not all_dependencies:
+                all_dependencies = direct_dependencies
+        elif 'requirements-txt' in files:
+            # Python requirements.txt
+            registry = 'pypi'
+            list_format = 'requirements.txt'
+            all_dependencies = parse.requirements_txt(
+                files['requirements-txt'],
+            )
+        else:
+            return await render_template(
+                'list_invalid.html',
+                error='No files provided',
+            )
+    except parse.UnknownFormat as e:
         return await render_template(
             'list_invalid.html',
             error=e.args[0],
@@ -177,28 +206,47 @@ async def upload_list():
 
     # Normalize names
     registry_obj = get_registry(registry)
-    deps = [
-        (registry_obj.normalize_name(name), version)
-        for name, version in deps
-    ]
+    if direct_dependencies is not None:
+        direct_dependencies = [
+            (registry_obj.normalize_name(name), version)
+            for name, version in direct_dependencies
+        ]
+    if all_dependencies is not None:
+        all_dependencies = [
+            (registry_obj.normalize_name(name), version)
+            for name, version in all_dependencies
+        ]
 
-    # Insert it in the database
+    if direct_dependencies is None:
+        direct_dependency_names = None
+    else:
+        direct_dependency_names = {
+            name
+            for name, version in direct_dependencies
+        }
+
+    # Insert in the database
     with db.begin() as trans:
         list_id, = trans.execute(
             database.dependency_lists.insert()
             .values(
                 created=datetime.utcnow(),
                 registry=registry,
-                format=format,
+                format=list_format,
             )
         ).inserted_primary_key
-        for dep_name, dep_version in deps:
+        for dep_name, dep_version in all_dependencies:
+            if direct_dependency_names is None:
+                direct = None  # We don't know
+            else:
+                direct = dep_name in direct_dependency_names
             trans.execute(
                 database.dependency_list_items.insert()
                 .values(
                     list_id=list_id,
                     name=dep_name,
                     version=dep_version,
+                    direct=direct,
                 )
             )
 
