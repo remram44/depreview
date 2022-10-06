@@ -297,13 +297,13 @@ async def view_list(list_id):
         )
         .where(database.dependency_lists.c.id == list_id)
     )
-    registry = format = None
+    registry = list_format = None
     deps = {}
     for row in rows:
         [
             registry, name, orig_name, last_refresh, repository, author,
             description, description_type,
-            format, version, direct,
+            list_format, version, direct,
         ] = row
         if orig_name is None:
             package = None
@@ -396,7 +396,7 @@ async def view_list(list_id):
     return await render_template(
         'list.html',
         registry=registry,
-        format=format,
+        format=list_format,
         dependencies=deps,
     )
 
