@@ -9,50 +9,6 @@ class UnknownFormat(ValueError):
     """
 
 
-def parse_package_list(list_file):
-    try:
-        data = tomli.load(list_file)
-    except tomli.TOMLDecodeError:
-        list_file.seek(0, 0)
-    else:
-        list_file.seek(0, 0)
-        if (
-            data.keys() == {'package', 'metadata'}
-            and data['metadata'].get('files')
-        ):
-            return 'pypi', 'poetry.lock', poetry_lock(list_file)
-        elif data.get('tool', {}).get('poetry'):
-            return 'pypi', 'pyproject.toml', pyproject_toml(list_file)
-        else:
-            raise UnknownFormat("Unrecognized TOML file")
-
-    all_match = True
-    matches = 0
-    escaped = False
-    for line in iter(list_file.readline, b''):
-        was_escaped, escaped = escaped, False
-        line_strip = line.strip()
-        if not line_strip or line_strip[0:1] == b'#':
-            continue
-
-        escaped = line_strip[-1:] == b'\\'
-
-        if was_escaped:
-            pass
-        elif re.match(
-            br'^[a-z0-9_-]{1,50}==[a-z0-9-.]{1,20}(?:\s*(?:\\|--|;|#).+)?\s*$',
-            line,
-        ):
-            matches += 1
-        else:
-            all_match = False
-    list_file.seek(0, 0)
-    if all_match and matches >= 3:
-        return 'pypi', 'requirements.txt', requirements_txt(list_file)
-
-    raise UnknownFormat("Unknown file format")
-
-
 def poetry_lock(list_file):
     try:
         data = tomli.load(list_file)
