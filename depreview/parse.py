@@ -19,11 +19,9 @@ def parse_package_list(list_file):
             data.keys() == {'package', 'metadata'}
             and data['metadata'].get('files')
         ):
-            return 'pypi', 'poetry.lock', parse_poetry_lock(data)
+            return 'pypi', 'poetry.lock', poetry_lock(list_file)
         elif data.get('tool', {}).get('poetry'):
-            raise UnknownFormat(
-                "Please upload poetry.lock instead of pyproject.toml",
-            )
+            return 'pypi', 'pyproject.toml', pyproject_toml(list_file)
         else:
             raise UnknownFormat("Unrecognized TOML file")
 
@@ -49,19 +47,58 @@ def parse_package_list(list_file):
             all_match = False
     list_file.seek(0, 0)
     if all_match and matches >= 3:
-        return 'pypi', 'requirements.txt', parse_requirements_txt(list_file)
+        return 'pypi', 'requirements.txt', requirements_txt(list_file)
 
     raise UnknownFormat("Unknown file format")
 
 
-def parse_poetry_lock(data):
-    packages = []
-    for package in data['package']:
-        packages.append((package['name'], package['version']))
-    return packages
+def poetry_lock(list_file):
+    try:
+        data = tomli.load(list_file)
+    except tomli.TOMLDecodeError:
+        raise UnknownFormat('Invalid TOML')
+    try:
+        packages = []
+        for package in data['package']:
+            if (
+                not isinstance(package['name'], str)
+                or not isinstance(package['version'], str)
+            ):
+                raise UnknownFormat('Invalid lock file')
+            packages.append((package['name'], package['version']))
+        return packages
+    except KeyError:
+        raise UnknownFormat('Invalid lock file')
 
 
-def parse_requirements_txt(list_file):
+def pyproject_toml(list_file):
+    try:
+        data = tomli.load(list_file)
+    except tomli.TOMLDecodeError:
+        raise UnknownFormat('Invalid TOML')
+    try:
+        packages = []
+        if not isinstance(data['tool']['poetry']['dependencies'], dict):
+            raise UnknownFormat('Invalid Poetry project file')
+
+        def add_list(pkgs):
+            for name, version in pkgs.items():
+                if (
+                    not isinstance(name, str)
+                    or not isinstance(version, str)
+                ):
+                    raise UnknownFormat('Invalid Poetry project file')
+                packages.append((name, version))
+
+        add_list(data['tool']['poetry']['dependencies'])
+        if data['tool']['poetry'].get('dev-dependencies'):
+            add_list(data['tool']['poetry']['dev-dependencies'])
+        return packages
+    except KeyError:
+        raise UnknownFormat('Invalid lock file')
+
+
+def requirements_txt(list_file):
     try:
         packages = []
         escaped = False
