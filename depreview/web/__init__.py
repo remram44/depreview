@@ -367,9 +367,7 @@ async def view_list(list_id):
     # TODO: Get statements
     statements = []
 
-    sorted_list = sorted(deps.items(), key=lambda p: p[0])
-    deps = []
-    for _, (package, required_version, direct) in sorted_list:
+    for norm_name, (package, required_version, direct) in deps.items():
         # Annotate versions
         annotated = annotate_versions(
             registry_obj,
@@ -387,19 +385,60 @@ async def view_list(list_id):
                 version = annotation
                 break
 
-        deps.append((
+        deps[norm_name] = (
             package,
             version,
             required_version,
             direct,
-        ))
+        )
 
-    return await render_template(
-        'list.html',
-        registry=registry,
-        format=list_format,
-        dependencies=deps,
-    )
+    # Format as tree if we have some direct and some indirect dependencies
+    if (
+        any(d[3] is True for d in deps.values())
+        and any(d[3] is False for d in deps.values())
+    ):
+        tree = []
+
+        def get_children(norm_name):
+            # TODO: Huh I need more info in DB
+            # Pick 3 at random
+            import random
+            return [
+                (d[0], d[1], d[2], [])
+                for _, d in sorted(
+                    random.sample([d for d in deps.items() if not d[1][3]], 3),
+                    key=lambda p: p[0]
+                )
+            ]
+
+        for norm_name, (package, version, required_version, direct) in sorted(
+            deps.items(),
+            key=lambda p: p[0],
+        ):
+            if direct is True:
+                tree.append((
+                    package,
+                    version,
+                    required_version,
+                    get_children(norm_name),
+                ))
+
+        return await render_template(
+            'list_tree.html',
+            registry=registry,
+            format=list_format,
+            dependencies=tree,
+        )
+    else:
+        return await render_template(
+            'list.html',
+            registry=registry,
+            format=list_format,
+            dependencies=[
+                p[1]
+                for p in sorted(deps.items(), key=lambda p: p[0])
+            ],
+        )
 
 
 async def get_package(registry_obj, norm_name):
