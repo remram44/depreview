@@ -276,7 +276,7 @@ async def view_list(list_id):
             database.packages.c.description_type,
             database.dependency_lists.c.format,
             database.dependency_list_items.c.version,
-            database.packages.c.name,
+            database.dependency_list_items.c.direct,
         ])
         .select_from(
             database.dependency_lists
@@ -303,7 +303,7 @@ async def view_list(list_id):
         [
             registry, name, orig_name, last_refresh, repository, author,
             description, description_type,
-            format, version, _,
+            format, version, direct,
         ] = row
         if orig_name is None:
             package = None
@@ -315,7 +315,7 @@ async def view_list(list_id):
                 repository=repository,
                 last_refresh=last_refresh,
             )
-        deps[name] = package, version
+        deps[name] = package, version, direct
 
     if registry is None:
         return await render_template('list_notfound.html'), 404
@@ -352,23 +352,23 @@ async def view_list(list_id):
 
     # Get missing packages from registry
     if logger.isEnabledFor(logging.INFO):
-        missing_packages = sum(1 for pkg, _ in deps.values() if pkg is None)
+        missing_packages = sum(1 for d in deps.values() if d[0] is None)
         if missing_packages > 0:
             logger.info(
                 '%d packages not in database, getting from registry',
                 missing_packages,
             )
-    for name, (package, version) in deps.items():
+    for name, (package, version, direct) in deps.items():
         if package is None:
             package = await load_package(registry_obj, name)
-            deps[name] = package, version
+            deps[name] = package, version, direct
 
     # TODO: Get statements
     statements = []
 
     sorted_list = sorted(deps.items(), key=lambda p: p[0])
     deps = []
-    for _, (package, required_version) in sorted_list:
+    for _, (package, required_version, direct) in sorted_list:
         # Annotate versions
         annotated = annotate_versions(
             registry_obj,
@@ -385,13 +385,14 @@ async def view_list(list_id):
         deps.append((
             package,
             version,
+            direct,
         ))
 
     return await render_template(
         'list.html',
         registry=registry,
         format=format,
-        deps=deps,
+        dependencies=deps,
     )
 
 

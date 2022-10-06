@@ -3,16 +3,17 @@
 {% block contents -%}
 <h1>Dependency list</h1>
 <p>{{ format }} for {{ registry }}</p>
-<ul>
-  {% for package, version in deps %}
-  <li>
+<ul class="list-group">
+  {% for package, version, direct in dependencies %}
+  <li class="list-group-item"
+  {%- if direct is none %}{% elif direct %} style="background-color: #cfc;"{% else %} style="background-color: #efefef;"{% endif %}>
     <a href="{{ url_for('package', registry=registry, name=package.name) }}">{{ package.name }}</a> {{ version.version }}
     {% if version.status[0] == 'yanked' %}
-    <span style="color: red;">{{ version.status[1] }}</span>
+    <br><span style="color: red;">{{ version.status[1] }}</span>
     {% elif version.status[0] == 'very-outdated' %}
-    <span style="color: red;">{{ version.status[1] }}</span>
+    <br><span style="color: red;">{{ version.status[1] }}</span>
     {% elif version.status[0] == 'outdated' %}
-    <span style="color: blue;">{{ version.status[1] }}</span>
+    <br><span style="color: blue;">{{ version.status[1] }}</span>
     {% endif %}
   </li>
   {% endfor %}
