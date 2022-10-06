@@ -376,15 +376,20 @@ async def view_list(list_id):
             statements,
         )
 
-        version = None  # Avoids warning
         # Find the one we want
+        version = None
         for annotation in annotated:
-            if annotation.version == required_version:
+            if registry_obj.version_match_specifier(
+                annotation.version, required_version,
+            ):
+                # Grab the first one, they are in reverse order
                 version = annotation
+                break
 
         deps.append((
             package,
             version,
+            required_version,
             direct,
         ))
 

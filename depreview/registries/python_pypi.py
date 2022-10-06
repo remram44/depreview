@@ -1,5 +1,6 @@
 from datetime import datetime
 import logging
+import packaging.specifiers
 import packaging.version
 import re
 
@@ -94,3 +95,7 @@ class PythonPyPI(BaseRegistry):
 
     def is_prerelease(self, version):
         return packaging.version.parse(version).is_prerelease
+
+    def version_match_specifier(self, version, specifier):
+        specifier = packaging.specifiers.SpecifierSet(specifier)
+        return version in specifier

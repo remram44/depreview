@@ -17,6 +17,9 @@ class BaseRegistry(object):
     def is_prerelease(self, version):
         return False
 
+    def version_match_specifier(self, version, specifier):
+        return version == specifier
+
 
 class Package(object):
     def __init__(
