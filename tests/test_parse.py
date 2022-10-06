@@ -9,7 +9,8 @@ class TestParse(unittest.TestCase):
         result = parse_package_list(BytesIO(
             b'[tool.poetry]\nname = "depreview"\nversion = "0.1.0"\n\n'
             + b'[tool.poetry.dependencies]\n'
-            + b'aiofiles = "^22.1.0"\naiohttp = "*"\n'
+            + b'aiofiles = "^22.1.2"\naiohttp = "*"\n'
+            + b'aiosignal = "=1.2.0"\nattrs = "~22.1.2"\n'
             + b'\n[build-system]\nrequires = ["poetry-core"]\n'
             + b'build-backend = "poetry.core.masonry.api"\n'
         ))
@@ -19,8 +20,10 @@ class TestParse(unittest.TestCase):
                 'pypi',
                 'pyproject.toml',
                 [
-                    ('aiofiles', '^22.1.0'),
-                    ('aiohttp', '*'),
+                    ('aiofiles', '>=22.1.2,<23.0.0'),
+                    ('aiohttp', ''),
+                    ('aiosignal', '==1.2.0'),
+                    ('attrs', '>=22.1.2,<22.2.0'),
                 ]
             )
         )
@@ -38,8 +41,8 @@ class TestParse(unittest.TestCase):
                 'pypi',
                 'poetry.lock',
                 [
-                    ('aiofiles', '22.1.0'),
-                    ('aiohttp', '3.8.3'),
+                    ('aiofiles', '==22.1.0'),
+                    ('aiohttp', '==3.8.3'),
                 ],
             ),
         )
@@ -59,9 +62,9 @@ class TestParse(unittest.TestCase):
                 'pypi',
                 'requirements.txt',
                 [
-                    ('aiofiles', '22.1.0'),
-                    ('aiohttp', '3.8.3'),
-                    ('aiosignal', '1.2.0'),
+                    ('aiofiles', '==22.1.0'),
+                    ('aiohttp', '==3.8.3'),
+                    ('aiosignal', '==1.2.0'),
                 ]
             )
         )

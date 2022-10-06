@@ -65,10 +65,51 @@ def poetry_lock(list_file):
                 or not isinstance(package['version'], str)
             ):
                 raise UnknownFormat('Invalid lock file')
-            packages.append((package['name'], package['version']))
+            packages.append((package['name'], '==' + package['version']))
         return packages
     except KeyError:
         raise UnknownFormat('Invalid lock file')
+
+
+def next_major(version):
+    major, rest = re.match(r'^([0-9]+)(.*)$', version).groups()
+    major = int(major, 10)
+    return f'{major + 1}.0.0'
+
+
+def next_minor(version):
+    major, minor, rest = re.match(
+        r'^([0-9]+\.)([0-9]+)(.*)$',
+        version,
+    ).groups()
+    minor = int(minor, 10)
+    return f'{major}{minor + 1}.0'
+
+
+def poetry_to_standard_spec(spec):
+    result = []
+    for part in spec.split(','):
+        part = part.strip()
+        if not part:
+            continue
+        if part == '*':
+            return ''
+        if part.startswith('^'):
+            part = part[1:]
+            result.append('>=' + part)
+            result.append('<' + next_major(part))
+        elif part.startswith('~'):
+            part = part[1:]
+            result.append('>=' + part)
+            result.append('<' + next_minor(part))
+        elif part.startswith('='):
+            part = part[1:]
+            result.append('==' + part)
+        elif part.startswith(('>', '<')):
+            result.append(part)
+        else:
+            result.append('==' + part)
+    return ','.join(result)
 
 
 def pyproject_toml(list_file):
@@ -88,7 +129,10 @@ def pyproject_toml(list_file):
                     or not isinstance(version, str)
                 ):
                     raise UnknownFormat('Invalid Poetry project file')
-                packages.append((name, version))
+                if name == 'python':
+                    # Doesn't count
+                    continue
+                packages.append((name, poetry_to_standard_spec(version)))
 
         add_list(data['tool']['poetry']['dependencies'])
         if data['tool']['poetry'].get('dev-dependencies'):
@@ -111,7 +155,7 @@ def requirements_txt(list_file):
                 m = re.match(br'([^ =<>]+)==([^ #]+)', line)
                 packages.append((
                     m.group(1).decode('ascii'),
-                    m.group(2).decode('ascii'),
+                    '==' + m.group(2).decode('ascii'),
                 ))
             if line[-1:] == b'\\':
                 escaped = True
