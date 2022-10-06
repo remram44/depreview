@@ -97,6 +97,7 @@ dependency_list_items = Table(
     Column('list_id', Integer, primary_key=True),
     Column('name', String, primary_key=True),
     Column('version', String),
+    Column('direct', Boolean, nullable=True),
 )
 
 
