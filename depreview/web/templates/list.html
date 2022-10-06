@@ -11,11 +11,11 @@
     {% if version is none %}
       <span style="color: red;">unknown version {{ req_version }}</span>
     {% else %}
-      {{ version.version }}
+      <span class="version">{{ version.version }}</span>
       {% if not req_version.startswith('==') %}
-      (required:
+      (required: <span class="version">
       {% if req_version %}{{ req_version }}{% else %}*{% endif -%}
-      )
+      </span>)
       {% endif %}
       {% if version.status[0] == 'yanked' %}
       <br><span style="color: red;">{{ version.status[1] }}</span>

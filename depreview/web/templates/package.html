@@ -18,7 +18,7 @@
 <ul class="list-group">
   {% for version in versions %}
   <li class="list-group-item">
-    {{ version.version }}
+    <span class="version">{{ version.version }}</span>
     {% if version.status[0] == 'yanked' %}
     <br><span style="color: red;">{{ version.status[1] }}</span>
     {% elif version.status[0] == 'very-outdated' %}
