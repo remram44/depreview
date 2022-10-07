@@ -66,7 +66,10 @@ def poetry_lock(list_file):
                 or not isinstance(package['version'], str)
             ):
                 raise UnknownFormat('Invalid lock file')
-            packages.append((package['name'], '==' + package['version']))
+            packages.append((
+                PythonPyPI.normalize_name(package['name']),
+                '==' + package['version'],
+            ))
         return packages
     except KeyError:
         raise UnknownFormat('Invalid lock file')
@@ -156,7 +159,7 @@ def requirements_txt(list_file):
             if not was_escaped:
                 m = re.match(br'([^ =<>]+)==([^ #]+)', line)
                 packages.append((
-                    m.group(1).decode('ascii'),
+                    PythonPyPI.normalize_name(m.group(1).decode('ascii')),
                     '==' + m.group(2).decode('ascii'),
                 ))
             if line[-1:] == b'\\':
