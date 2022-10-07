@@ -1,6 +1,7 @@
 import re
-
 import tomli
+
+from .registries.python_pypi import PythonPyPI
 
 
 class UnknownFormat(ValueError):
@@ -123,16 +124,17 @@ def pyproject_toml(list_file):
             raise UnknownFormat('Invalid Poetry project file')
 
         def add_list(pkgs):
-            for name, version in pkgs.items():
+            for orig_name, version in pkgs.items():
                 if (
-                    not isinstance(name, str)
+                    not isinstance(orig_name, str)
                     or not isinstance(version, str)
                 ):
                     raise UnknownFormat('Invalid Poetry project file')
-                if name == 'python':
+                if orig_name.lower() == 'python':
                     # Doesn't count
                     continue
-                packages.append((name, poetry_to_standard_spec(version)))
+                norm_name = PythonPyPI.normalize_name(orig_name)
+                packages.append((norm_name, poetry_to_standard_spec(version)))
 
         add_list(data['tool']['poetry']['dependencies'])
         if data['tool']['poetry'].get('dev-dependencies'):

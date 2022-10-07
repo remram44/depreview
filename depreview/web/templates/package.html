@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block contents -%}
-<h1>{{ package.name }} (<a href="{{ link }}">{{ package.registry }}</a>)</h1>
+<h1>{{ package.orig_name }} (<a href="{{ link }}">{{ package.registry }}</a>)</h1>
 {% if package.last_refresh %}
 <p>Last updated: {{ package.last_refresh }}</p>
 {% endif %}

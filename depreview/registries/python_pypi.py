@@ -17,9 +17,11 @@ class PythonPyPI(BaseRegistry):
     NAME = 'pypi'
 
     async def get_package(self, name, http):
-        async with http.get(f'https://pypi.org/pypi/{name}/json') as resp:
+        norm_name = self.normalize_name(name)
+        async with http.get(f'https://pypi.org/pypi/{norm_name}/json') as resp:
             data = await resp.json()
 
+        orig_name = data['info']['name']
         author = data['info'].get('author')
         description = data['info'].get('description')
         description_type = data['info'].get('description_content_type') or 'text/x-rst'
@@ -59,7 +61,7 @@ class PythonPyPI(BaseRegistry):
 
         return Package(
             self.NAME,
-            data['info']['name'],
+            orig_name,
             versions,
             author=author,
             description=description,
@@ -84,11 +86,13 @@ class PythonPyPI(BaseRegistry):
             yanked=all_yanked,
         )
 
-    def normalize_name(self, name):
+    @staticmethod
+    def normalize_name(name):
         return name.lower().replace('_', '-')
 
     def get_link(self, name):
-        return f'https://pypi.org/project/{name}/'
+        norm_name = self.normalize_name(name)
+        return f'https://pypi.org/project/{norm_name}/'
 
     def version_comparison_key(self, version):
         return packaging.version.parse(version)

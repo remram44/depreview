@@ -7,7 +7,7 @@
   {% for package, version, req_version, direct in dependencies %}
   <li class="list-group-item"
   {%- if direct is none %}{% elif direct %} style="background-color: #d0cfff;"{% else %} style="background-color: #efefef;"{% endif %}>
-    <a href="{{ url_for('package', registry=registry, name=package.name) }}">{{ package.name }}</a>
+    <a href="{{ url_for('package', registry=registry, name=package.orig_name) }}">{{ package.orig_name }}</a>
     {% if version is none %}
       <span style="color: red;">unknown version {{ req_version }}</span>
     {% else %}

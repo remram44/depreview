@@ -21,7 +21,7 @@ packages = Table(
     'packages',
     metadata,
     Column('registry', String, primary_key=True),
-    Column('name', String, primary_key=True),
+    Column('norm_name', String, primary_key=True),
     Column('last_refresh', DateTime, nullable=False),
     Column('orig_name', String, nullable=False),
     Column('author', String, nullable=True),
@@ -34,13 +34,13 @@ package_versions = Table(
     'package_versions',
     metadata,
     Column('registry', String, primary_key=True),
-    Column('name', String, primary_key=True),
+    Column('norm_name', String, primary_key=True),
     Column('version', String, primary_key=True),
     Column('release_date', DateTime, nullable=False),
     Column('yanked', Boolean, nullable=False),
     ForeignKeyConstraint(
-        ['registry', 'name'],
-        ['packages.registry', 'packages.name'],
+        ['registry', 'norm_name'],
+        ['packages.registry', 'packages.norm_name'],
     ),
 )
 
@@ -58,15 +58,15 @@ statements = Table(
     metadata,
     Column('id', Integer, primary_key=True),
     Column('registry', String),
-    Column('name', String),
+    Column('norm_name', String),
     Column('user_id', Integer, ForeignKey('users.id'), nullable=False),
     Column('type', String, nullable=False),
     Column('proof', String, nullable=False),
     Column('created', DateTime, nullable=False),
     Column('trust', Integer, nullable=False),
     ForeignKeyConstraint(
-        ['registry', 'name'],
-        ['packages.registry', 'packages.name'],
+        ['registry', 'norm_name'],
+        ['packages.registry', 'packages.norm_name'],
     ),
 )
 
@@ -95,7 +95,7 @@ dependency_list_items = Table(
     'dependency_list_items',
     metadata,
     Column('list_id', Integer, primary_key=True),
-    Column('name', String, primary_key=True),
+    Column('norm_name', String, primary_key=True),
     Column('version', String),
     Column('direct', Boolean, nullable=True),
 )

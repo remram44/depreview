@@ -64,7 +64,7 @@ async def index():
         sqlalchemy.select([
             database.statements.c.created,
             database.statements.c.registry,
-            database.statements.c.name,
+            database.statements.c.norm_name,
             database.statements.c.type,
             database.statements.c.proof,
             database.statements.c.user_id,
@@ -99,14 +99,15 @@ async def package(registry, name):
         ), 404
 
     # Use the registry plugin to normalize the name
-    normalized_name = registry_obj.normalize_name(name)
-    if normalized_name != name:
+    norm_name = registry_obj.normalize_name(name)
+    if norm_name != name:
         return redirect(
-            url_for('package', registry=registry, name=normalized_name),
+            url_for('package', registry=registry, name=norm_name),
             301,
         )
+    del name
 
-    package = await get_package(registry_obj, name)
+    package = await get_package(registry_obj, norm_name)
 
     # Get the statements
     statements = list(db.execute(
@@ -119,7 +120,7 @@ async def package(registry, name):
         ])
         .where(
             database.statements.c.registry == registry,
-            database.statements.c.name == normalized_name,
+            database.statements.c.norm_name == norm_name,
         )
     ))
 
@@ -134,7 +135,7 @@ async def package(registry, name):
         'package.html',
         package=package,
         versions=versions,
-        link=registry_obj.get_link(name),
+        link=registry_obj.get_link(norm_name),
         rendered_description=Markup(render_description(
             package.description,
             package.description_type,
@@ -154,10 +155,10 @@ async def search_package():
             'package_notfound.html',
             error='No such registry',
         ), 404
-    normalized_name = registry_obj.normalize_name(name)
+    norm_name = registry_obj.normalize_name(name)
 
     return redirect(
-        url_for('package', registry=registry, name=normalized_name),
+        url_for('package', registry=registry, name=norm_name),
         301,
     )
 
@@ -244,7 +245,7 @@ async def upload_list():
                 database.dependency_list_items.insert()
                 .values(
                     list_id=list_id,
-                    name=dep_name,
+                    norm_name=dep_name,
                     version=dep_version,
                     direct=direct,
                 )
@@ -267,7 +268,7 @@ async def view_list(list_id):
     rows = db.execute(
         sqlalchemy.select([
             database.dependency_lists.c.registry,
-            database.dependency_list_items.c.name,
+            database.dependency_list_items.c.norm_name,
             database.packages.c.orig_name,
             database.packages.c.last_refresh,
             database.packages.c.repository,
@@ -288,8 +289,8 @@ async def view_list(list_id):
             .outerjoin(
                 database.packages,
                 and_(
-                    database.dependency_list_items.c.name
-                    == database.packages.c.name,
+                    database.dependency_list_items.c.norm_name
+                    == database.packages.c.norm_name,
                     database.dependency_lists.c.registry
                     == database.packages.c.registry,
                 ),
@@ -301,7 +302,7 @@ async def view_list(list_id):
     deps = {}
     for row in rows:
         [
-            registry, name, orig_name, last_refresh, repository, author,
+            registry, norm_name, orig_name, last_refresh, repository, author,
             description, description_type,
             list_format, version, direct,
         ] = row
@@ -315,7 +316,7 @@ async def view_list(list_id):
                 repository=repository,
                 last_refresh=last_refresh,
             )
-        deps[name] = package, version, direct
+        deps[norm_name] = package, version, direct
 
     if registry is None:
         return await render_template('list_notfound.html'), 404
@@ -324,7 +325,7 @@ async def view_list(list_id):
     # Fill in versions
     rows = db.execute(
         sqlalchemy.select([
-            database.package_versions.c.name,
+            database.package_versions.c.norm_name,
             database.package_versions.c.version,
             database.package_versions.c.release_date,
             database.package_versions.c.yanked,
@@ -334,8 +335,8 @@ async def view_list(list_id):
             .join(
                 database.package_versions,
                 and_(
-                    database.package_versions.c.name
-                    == database.dependency_list_items.c.name,
+                    database.package_versions.c.norm_name
+                    == database.dependency_list_items.c.norm_name,
                     database.package_versions.c.registry == registry,
                 ),
             )
@@ -343,8 +344,8 @@ async def view_list(list_id):
         .where(database.dependency_list_items.c.list_id == list_id)
     )
     for row in rows:
-        name, version, release_date, yanked = row
-        deps[name][0].versions[version] = PackageVersion(
+        norm_name, version, release_date, yanked = row
+        deps[norm_name][0].versions[version] = PackageVersion(
             version,
             release_date=release_date,
             yanked=bool(yanked),
@@ -358,10 +359,10 @@ async def view_list(list_id):
                 '%d packages not in database, getting from registry',
                 missing_packages,
             )
-    for name, (package, version, direct) in deps.items():
+    for norm_name, (package, version, direct) in deps.items():
         if package is None:
-            package = await load_package(registry_obj, name)
-            deps[name] = package, version, direct
+            package = await load_package(registry_obj, norm_name)
+            deps[norm_name] = package, version, direct
 
     # TODO: Get statements
     statements = []
@@ -401,7 +402,7 @@ async def view_list(list_id):
     )
 
 
-async def get_package(registry_obj, normalized_name):
+async def get_package(registry_obj, norm_name):
     # Get from database
     package = db.execute(
         sqlalchemy.select([
@@ -415,14 +416,14 @@ async def get_package(registry_obj, normalized_name):
         .select_from(database.packages)
         .where(
             database.packages.c.registry == registry_obj.NAME,
-            database.packages.c.name == normalized_name,
+            database.packages.c.norm_name == norm_name,
         )
         .limit(1)
     ).first()
 
     # If not in database, load from registry API
     if not package:
-        return await load_package(registry_obj, normalized_name)
+        return await load_package(registry_obj, norm_name)
 
     [
         orig_name,
@@ -442,7 +443,7 @@ async def get_package(registry_obj, normalized_name):
         .select_from(database.package_versions)
         .where(
             database.package_versions.c.registry == registry_obj.NAME,
-            database.package_versions.c.name == normalized_name,
+            database.package_versions.c.norm_name == norm_name,
         )
         .order_by(desc(database.package_versions.c.release_date))
     )
@@ -473,24 +474,24 @@ async def get_package(registry_obj, normalized_name):
     return package
 
 
-async def load_package(registry_obj, normalized_name):
+async def load_package(registry_obj, norm_name):
     logger.info(
         "Loading package %r / %r...",
         registry_obj.NAME,
-        normalized_name,
+        norm_name,
     )
 
     async with aiohttp.ClientSession() as http:
-        package = await registry_obj.get_package(normalized_name, http)
+        package = await registry_obj.get_package(norm_name, http)
 
     with db.begin() as trans:
         trans.execute(
             database.packages.insert()
             .values(
                 registry=registry_obj.NAME,
-                name=normalized_name,
+                norm_name=norm_name,
                 last_refresh=package.last_refresh,
-                orig_name=package.name,
+                orig_name=package.orig_name,
                 author=package.author,
                 description=package.description,
                 description_type=package.description_type,
@@ -503,7 +504,7 @@ async def load_package(registry_obj, normalized_name):
                 database.package_versions.insert()
                 .values(
                     registry=registry_obj.NAME,
-                    name=registry_obj.normalize_name(package.name),
+                    norm_name=registry_obj.normalize_name(package.orig_name),
                     version=num,
                     release_date=version.release_date,
                     yanked=bool(version.yanked),
@@ -517,17 +518,19 @@ async def refresh_package(registry_obj, old_package):
     logger.info(
         "Refreshing package %r / %r...",
         registry_obj.NAME,
-        old_package.name,
+        old_package.orig_name,
     )
 
+    norm_name = registry_obj.normalize_name(old_package.orig_name)
+
     async with aiohttp.ClientSession() as http:
-        new_package = await registry_obj.get_package(old_package.name, http)
+        new_package = await registry_obj.get_package(norm_name, http)
 
     with db.begin() as trans:
         # Update package data
         update = {'last_refresh': new_package.last_refresh}
-        if new_package.name != old_package.name:
-            update['name'] = new_package.name
+        if new_package.orig_name != old_package.orig_name:
+            update['orig_name'] = new_package.orig_name
         if new_package.author != old_package.author:
             update['author'] = new_package.author
         if new_package.description != old_package.description:
@@ -541,7 +544,7 @@ async def refresh_package(registry_obj, old_package):
             .values(**update)
             .where(
                 database.packages.c.registry == registry_obj.NAME,
-                database.packages.c.name == old_package.name,
+                database.packages.c.norm_name == norm_name,
             )
         )
 
@@ -552,7 +555,7 @@ async def refresh_package(registry_obj, old_package):
                     database.package_versions.insert()
                     .values(
                         registry=registry_obj.NAME,
-                        name=registry_obj.normalize_name(new_package.name),
+                        norm_name=norm_name,
                         version=num,
                         release_date=version.release_date,
                         yanked=bool(version.yanked),

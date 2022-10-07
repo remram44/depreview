@@ -25,7 +25,7 @@ class Package(object):
     def __init__(
         self,
         registry,
-        name,
+        orig_name,
         versions,
         *,
         author,
@@ -35,7 +35,7 @@ class Package(object):
         last_refresh=None,
     ):
         self.registry = registry
-        self.name = name
+        self.orig_name = orig_name
         self.versions = versions
         self.author = author
         self.description = description
@@ -47,7 +47,7 @@ class Package(object):
             self.last_refresh = last_refresh
 
     def __repr__(self):
-        return '<Package %r>' % self.name
+        return '<Package %r>' % self.orig_name
 
 
 class PackageVersion(object):
