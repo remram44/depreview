@@ -9,50 +9,6 @@ class UnknownFormat(ValueError):
     """
 
 
-def parse_package_list(list_file):
-    try:
-        data = tomli.load(list_file)
-    except tomli.TOMLDecodeError:
-        list_file.seek(0, 0)
-    else:
-        list_file.seek(0, 0)
-        if (
-            data.keys() == {'package', 'metadata'}
-            and data['metadata'].get('files')
-        ):
-            return 'pypi', 'poetry.lock', poetry_lock(list_file)
-        elif data.get('tool', {}).get('poetry'):
-            return 'pypi', 'pyproject.toml', pyproject_toml(list_file)
-        else:
-            raise UnknownFormat("Unrecognized TOML file")
-
-    all_match = True
-    matches = 0
-    escaped = False
-    for line in iter(list_file.readline, b''):
-        was_escaped, escaped = escaped, False
-        line_strip = line.strip()
-        if not line_strip or line_strip[0:1] == b'#':
-            continue
-
-        escaped = line_strip[-1:] == b'\\'
-
-        if was_escaped:
-            pass
-        elif re.match(
-            br'^[a-z0-9_-]{1,50}==[a-z0-9-.]{1,20}(?:\s*(?:\\|--|;|#).+)?\s*$',
-            line,
-        ):
-            matches += 1
-        else:
-            all_match = False
-    list_file.seek(0, 0)
-    if all_match and matches >= 3:
-        return 'pypi', 'requirements.txt', requirements_txt(list_file)
-
-    raise UnknownFormat("Unknown file format")
-
-
 def poetry_lock(list_file):
     try:
         data = tomli.load(list_file)
@@ -61,14 +17,30 @@ def poetry_lock(list_file):
     try:
         packages = []
         for package in data['package']:
+            # Get package name and version
             if (
                 not isinstance(package['name'], str)
-                or not isinstance(package['version'], str)
+                or 'version' not in package
             ):
                 raise UnknownFormat('Invalid lock file')
+            elif not isinstance(package['version'], str):
+                raise UnknownFormat('Invalid lock file')
+
+            # Get dependencies
+            dependencies = []
+            if package.get('dependencies'):
+                if not isinstance(package['dependencies'], dict):
+                    raise UnknownFormat('Invalid lock file')
+                for name, version in package['dependencies'].items():
+                    if not isinstance(name, str):
+                        raise UnknownFormat('Invalid lock file')
+                    dependencies.append(PythonPyPI.normalize_name(name))
+            # TODO: Support extras
+
             packages.append((
                 PythonPyPI.normalize_name(package['name']),
                 '==' + package['version'],
+                sorted(dependencies),
             ))
         return packages
     except KeyError:
@@ -137,7 +109,11 @@ def pyproject_toml(list_file):
                     # Doesn't count
                     continue
                 norm_name = PythonPyPI.normalize_name(orig_name)
-                packages.append((norm_name, poetry_to_standard_spec(version)))
+                packages.append((
+                    norm_name,
+                    poetry_to_standard_spec(version),
+                    None,
+                ))
 
         add_list(data['tool']['poetry']['dependencies'])
         if data['tool']['poetry'].get('dev-dependencies'):
@@ -161,6 +137,7 @@ def requirements_txt(list_file):
                 packages.append((
                     PythonPyPI.normalize_name(m.group(1).decode('ascii')),
                     '==' + m.group(2).decode('ascii'),
+                    None,
                 ))
             if line[-1:] == b'\\':
                 escaped = True

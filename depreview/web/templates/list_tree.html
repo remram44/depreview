@@ -3,8 +3,9 @@
 {% block contents -%}
 <h1>Dependency list</h1>
 <p>{{ format }} for {{ registry }}</p>
-<ul class="list-group">
-  {% for package, version, req_version, direct in dependencies %}
+
+{% macro render_recursive(tree) %}
+  {% for package, version, req_version, children in tree %}
   <li class="list-group-item">
     <a href="{{ url_for('package', registry=registry, name=package.orig_name) }}">{{ package.orig_name }}</a>
     {% if version is none %}
@@ -24,7 +25,16 @@
       <br><span style="color: blue;">{{ version.status[1] }}</span>
       {% endif %}
     {% endif %}
+    {% if children %}
+      <ul class="list-group mt-2">
+      {{ render_recursive(children) }}
+      </ul>
+    {% endif %}
   </li>
   {% endfor %}
+{% endmacro %}
+
+<ul class="list-group">
+{{ render_recursive(dependencies) }}
 </ul>
 {%- endblock %}
