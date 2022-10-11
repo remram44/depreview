@@ -209,12 +209,12 @@ async def upload_list():
     registry_obj = get_registry(registry)
     if direct_dependencies is not None:
         direct_dependencies = [
-            (registry_obj.normalize_name(name), version)
+            (registry_obj.normalize_name(name), version, depends_on)
             for name, version, depends_on in direct_dependencies
         ]
     if all_dependencies is not None:
         all_dependencies = [
-            (registry_obj.normalize_name(name), version)
+            (registry_obj.normalize_name(name), version, depends_on)
             for name, version, depends_on in all_dependencies
         ]
 
@@ -241,6 +241,7 @@ async def upload_list():
                 direct = None  # We don't know
             else:
                 direct = dep_name in direct_dependency_names
+            depends_on = '#'.join(depends_on)
             trans.execute(
                 database.dependency_list_items.insert()
                 .values(
@@ -248,6 +249,7 @@ async def upload_list():
                     norm_name=dep_name,
                     version=dep_version,
                     direct=direct,
+                    depends_on=depends_on,
                 )
             )
 
@@ -278,6 +280,7 @@ async def view_list(list_id):
             database.dependency_lists.c.format,
             database.dependency_list_items.c.version,
             database.dependency_list_items.c.direct,
+            database.dependency_list_items.c.depends_on,
         ])
         .select_from(
             database.dependency_lists
@@ -304,7 +307,7 @@ async def view_list(list_id):
         [
             registry, norm_name, orig_name, last_refresh, repository, author,
             description, description_type,
-            list_format, version, direct,
+            list_format, version, direct, depends_on,
         ] = row
         if orig_name is None:
             package = None
@@ -316,7 +319,11 @@ async def view_list(list_id):
                 repository=repository,
                 last_refresh=last_refresh,
             )
-        deps[norm_name] = package, version, direct
+        if depends_on:
+            depends_on = depends_on.split('#')
+        else:
+            depends_on = []
+        deps[norm_name] = package, version, direct, depends_on
 
     if registry is None:
         return await render_template('list_notfound.html'), 404
@@ -359,15 +366,18 @@ async def view_list(list_id):
                 '%d packages not in database, getting from registry',
                 missing_packages,
             )
-    for norm_name, (package, version, direct) in deps.items():
+    for norm_name, (package, version, direct, depends_on) in deps.items():
         if package is None:
             package = await load_package(registry_obj, norm_name)
-            deps[norm_name] = package, version, direct
+            deps[norm_name] = package, version, direct, depends_on
 
     # TODO: Get statements
     statements = []
 
-    for norm_name, (package, required_version, direct) in deps.items():
+    for (
+        norm_name,
+        (package, required_version, direct, depends_on)
+    ) in deps.items():
         # Annotate versions
         annotated = annotate_versions(
             registry_obj,
@@ -390,6 +400,7 @@ async def view_list(list_id):
             version,
             required_version,
             direct,
+            depends_on,
         )
 
     # Format as tree if we have some direct and some indirect dependencies
@@ -399,29 +410,33 @@ async def view_list(list_id):
     ):
         tree = []
 
-        def get_children(norm_name):
-            # TODO: Huh I need more info in DB
-            # Pick 3 at random
-            import random
-            return [
-                (d[0], d[1], d[2], [])
-                for _, d in sorted(
-                    random.sample([d for d in deps.items() if not d[1][3]], 3),
-                    key=lambda p: p[0]
-                )
-            ]
+        def render(norm_name, seen):
+            # Avoid cycles
+            if norm_name in seen:
+                return
+            seen = set(seen)
+            seen.add(norm_name)
 
-        for norm_name, (package, version, required_version, direct) in sorted(
+            (
+                package,
+                version,
+                required_version,
+                direct,
+                depends_on,
+            ) = deps[norm_name]
+            return (
+                package,
+                version,
+                required_version,
+                [render(n, seen) for n in depends_on],
+            )
+
+        for norm_name, (package, version, required_version, direct, depends_on) in sorted(
             deps.items(),
             key=lambda p: p[0],
         ):
             if direct is True:
-                tree.append((
-                    package,
-                    version,
-                    required_version,
-                    get_children(norm_name),
-                ))
+                tree.append(render(norm_name, set()))
 
         return await render_template(
             'list_tree.html',

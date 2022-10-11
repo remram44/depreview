@@ -17,30 +17,30 @@ def poetry_lock(list_file):
     try:
         packages = []
         for package in data['package']:
+            # Get package name and version
             if (
                 not isinstance(package['name'], str)
-                or not isinstance(package['version'], str)
+                or 'version' not in package
             ):
                 raise UnknownFormat('Invalid lock file')
+            elif not isinstance(package['version'], str):
+                raise UnknownFormat('Invalid lock file')
+
+            # Get dependencies
             dependencies = []
             if package.get('dependencies'):
                 if not isinstance(package['dependencies'], dict):
                     raise UnknownFormat('Invalid lock file')
                 for name, version in package['dependencies'].items():
-                    if (
-                        not isinstance(name, str)
-                        or not isinstance(version, str)
-                    ):
+                    if not isinstance(name, str):
                         raise UnknownFormat('Invalid lock file')
-                    dependencies.append((
-                        PythonPyPI.normalize_name(name),
-                        version,
-                    ))
+                    dependencies.append(PythonPyPI.normalize_name(name))
             # TODO: Support extras
+
             packages.append((
                 PythonPyPI.normalize_name(package['name']),
                 '==' + package['version'],
-                dependencies,
+                sorted(dependencies),
             ))
         return packages
     except KeyError:

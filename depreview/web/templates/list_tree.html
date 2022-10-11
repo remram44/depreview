@@ -7,7 +7,7 @@
 {% macro render_recursive(tree) %}
   {% for package, version, req_version, children in tree %}
   <li class="list-group-item">
-    <a href="{{ url_for('package', registry=registry, name=package.name) }}">{{ package.name }}</a>
+    <a href="{{ url_for('package', registry=registry, name=package.orig_name) }}">{{ package.orig_name }}</a>
     {% if version is none %}
       <span style="color: red;">unknown version {{ req_version }}</span>
     {% else %}

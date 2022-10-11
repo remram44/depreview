@@ -36,7 +36,7 @@ class TestParse(unittest.TestCase):
             result,
             [
                 ('aiofiles', '==22.1.0', []),
-                ('aiohttp', '==3.8.3', [('aiosignal', '>=1.1.2')]),
+                ('aiohttp', '==3.8.3', ['aiosignal']),
             ],
         )
 

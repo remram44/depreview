@@ -98,6 +98,7 @@ dependency_list_items = Table(
     Column('norm_name', String, primary_key=True),
     Column('version', String),
     Column('direct', Boolean, nullable=True),
+    Column('depends_on', String, nullable=True),
 )
 
 
